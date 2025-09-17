@@ -22,7 +22,7 @@ router.get("/", verifyToken, async (req, res) => {
 });
 
 // Get room by ID
-router.get("/:id", verifyToken, async (req, res) => {
+router.get("/:id", verifyToken, async (req, res ) => {
   try {
     const room = await getRoomById(req.params.id);
     if (!room || room.hotel_id !== req.hotel.hotel_id) {
