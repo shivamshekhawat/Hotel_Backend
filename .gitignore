@@ -7,6 +7,10 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
+# Ignore Firebase Admin SDK credentials
+resources/firebaseAdminSDK.json
+resources/firebaseAdminSDK.json
+
 # Environment variables
 .env
 
