@@ -50,6 +50,7 @@ async function updateDNDByRoomId(room_id, data) {
   return dnd;
 }
 
+
 // ✅ Get DND by room_id
 async function getDNDByRoomId(room_id) {
   const request = new sql.Request();

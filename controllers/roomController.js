@@ -19,6 +19,27 @@ exports.createRoom = async (req, res, next) => {
 };
 
 
+exports.LoginRoom = async (req, res, next) => {
+  try {
+    const result = await Room.loginRoom(req.body);
+    if (!result) return res.status(404).json({ error: "Invalid credentials" });
+    const token = generateToken({ room_id: result.room_id, hotel_id: result.hotel_id, role: "room" });
+    await Room.updateToken(result.room_id, token);
+    await Room.updateFcmToken(result.room_id, req.body.fcm_token);
+    await Room.updateDeviceId(result.room_id, req.body.device_id);
+  
+    res.status(200).json({
+      message: "Login successful",
+      room_id: result.room_id,
+      hotel_id: result.hotel_id,
+      role: "room",
+      token: token
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ================== GET ROOMS BY HOTEL ==================
 exports.getRoomsByHotel = async (req, res, next) => {
   try {

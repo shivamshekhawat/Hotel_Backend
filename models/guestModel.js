@@ -58,12 +58,13 @@ async function getGuestById(guest_id) {
 
 // Update guest
 async function updateGuest(guest_id, guestData) {
-  const { first_name, last_name, email, phone, language } = guestData;
+  const { first_name, last_name, email, phone, language, hotel_id } = guestData;
   const request = new sql.Request();
 
   await request
     .input("guest_id", sql.Int, guest_id)
     .input("first_name", sql.NVarChar, first_name)
+    .input("hotel_id", sql.Int, hotel_id)
     .input("last_name", sql.NVarChar, last_name)
     .input("email", sql.NVarChar, email)
     .input("phone", sql.NVarChar, phone)
@@ -72,6 +73,7 @@ async function updateGuest(guest_id, guestData) {
       UPDATE Guests
       SET first_name=@first_name,
           last_name=@last_name,
+          hotel_id=@hotel_id,
           email=@email,
           phone=@phone,
           language=@language

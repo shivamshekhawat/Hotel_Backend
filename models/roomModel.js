@@ -54,14 +54,16 @@ async function createRoom(roomData) {
   const insertedRoom = result.recordset[0];
   delete insertedRoom.password; // Do not return password
 
-  await request.input("room_id", sql.Int, insertedRoom.room_id)
-    .query(`INSERT INTO RoomTemperature (room_id, temperature, create_date, update_date) 
-            VALUES (@room_id, 24.0, GETDATE(), GETDATE())`);
+  // await request.input("room_id", sql.Int, insertedRoom.room_id)
+  //   .query(`INSERT INTO RoomTemperature (room_id, temperature, create_date, update_date) 
+  //           VALUES (@room_id, 24.0, GETDATE(), GETDATE())`);
   await request.input("room_id", sql.Int, insertedRoom.room_id)
     .query(`INSERT INTO DND (room_id, is_active, create_date, update_date) 
             VALUES (@room_id, 0, GETDATE(), GETDATE())`);
 
   await roomControlModel.createRoomControl({room_id: insertedRoom.room_id, master_light: 0, reading_light: 0, master_curtain: 0, master_window: 0, light_mode: "Warm"});
+  await roomTemperatureModel.createRoomTemperature({room_id: insertedRoom.room_id, temperature: 24.0});
+  // await dndModel.createDND({room_id: insertedRoom.room_id, is_active: 0});
   return { data: insertedRoom, status: 201 };
 }
 

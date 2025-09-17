@@ -79,7 +79,7 @@ const createHotel = async (req, res, next) => {
     }
 
     // Hash password
-    const hashedPassword = await bcrypt.hash(Password, 10);
+    // const hashedPassword = await bcrypt.hash(Password, 10);
 
     // Save hotel
     await hotelModel.createHotelWithHash({ ...req.body, Password: hashedPassword });
