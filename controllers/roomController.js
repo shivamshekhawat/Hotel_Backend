@@ -10,17 +10,6 @@ exports.createRoom = async (req, res, next) => {
     if (result.error) {
       return res.status(409).json({ error: result.error });
     }
-
-    // Insert default RoomTemperature & DND
-    await poolConnect;
-    const request = new sql.Request();
-    await request.input("room_id", sql.Int, result.data.room_id)
-      .query(`INSERT INTO RoomTemperature (room_id, temperature, create_date, update_date) 
-              VALUES (@room_id, 24.0, GETDATE(), GETDATE())`);
-    await request.input("room_id", sql.Int, result.data.room_id)
-      .query(`INSERT INTO DND (room_id, is_active, create_date, update_date) 
-              VALUES (@room_id, 0, GETDATE(), GETDATE())`);
-
     // ✅ Single response
     res.status(201).json({ message: "Room created successfully with RoomTemperature & DND", room: result.data });
 

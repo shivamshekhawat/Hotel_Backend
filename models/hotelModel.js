@@ -48,9 +48,7 @@ async function findHotelByUsername(UserName) {
 }
 
 // ✅ Create hotel with hashed password
-async function createHotelWithHash(hotelData) {
-  return createHotel(hotelData);
-}
+
 
 async function updateToken(hotel_id, token) {
   const request = new sql.Request();
@@ -133,7 +131,6 @@ async function deleteHotel(hotelId) {
 
 module.exports = {
   createHotel,
-  createHotelWithHash,
   getAllHotels,
   getHotelById,
   updateHotel,

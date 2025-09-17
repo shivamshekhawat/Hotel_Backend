@@ -1,5 +1,6 @@
 const { sql } = require("../db");
 const bcrypt = require("bcryptjs");
+const roomControlModel = require("./roomControlModel");
 
 // ================== CREATE ROOM ==================
 async function createRoom(roomData) {
@@ -27,11 +28,11 @@ async function createRoom(roomData) {
   }
 
   // ✅ Hash password
-  let hashedPassword = null;
-  if (password) {
-    const salt = await bcrypt.genSalt(10);
-    hashedPassword = await bcrypt.hash(password, salt);
-  }
+  // let hashedPassword = null;
+  // if (password) {
+  //   const salt = await bcrypt.genSalt(10);
+  //   hashedPassword = await bcrypt.hash(password, salt);
+  // }
 
   // ✅ Insert new room
   const result = await request
@@ -42,7 +43,7 @@ async function createRoom(roomData) {
     .input("availability", sql.Bit, availability ?? true)
     .input("capacity_adults", sql.Int, capacity_adults || 2)
     .input("capacity_children", sql.Int, capacity_children || 0)
-    .input("password", sql.NVarChar, hashedPassword)
+    .input("password", sql.NVarChar, password)
     .query(`
       INSERT INTO Rooms
       (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password)
@@ -53,6 +54,14 @@ async function createRoom(roomData) {
   const insertedRoom = result.recordset[0];
   delete insertedRoom.password; // Do not return password
 
+  await request.input("room_id", sql.Int, insertedRoom.room_id)
+    .query(`INSERT INTO RoomTemperature (room_id, temperature, create_date, update_date) 
+            VALUES (@room_id, 24.0, GETDATE(), GETDATE())`);
+  await request.input("room_id", sql.Int, insertedRoom.room_id)
+    .query(`INSERT INTO DND (room_id, is_active, create_date, update_date) 
+            VALUES (@room_id, 0, GETDATE(), GETDATE())`);
+
+  await roomControlModel.createRoomControl({room_id: insertedRoom.room_id, master_light: 0, reading_light: 0, master_curtain: 0, master_window: 0, light_mode: "Warm"});
   return { data: insertedRoom, status: 201 };
 }
 
@@ -63,6 +72,18 @@ async function getRooms(hotel_id) {
     .input("hotel_id", sql.Int, hotel_id)
     .query("SELECT room_id, hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children FROM Rooms WHERE hotel_id=@hotel_id");
   return result.recordset;
+}
+async function loginRoom(roomData) {
+  const { room_number, password, fcm_token, device_id } = roomData;
+  const request = new sql.Request();
+  const result = await request
+    .input("user_name", sql.NVarChar, user_name)
+    .input("password", sql.NVarChar, password)
+    .input("fcm_token", sql.NVarChar, fcm_token)
+    .input("device_id", sql.NVarChar, device_id)
+    .query("SELECT * FROM Rooms WHERE user_name=@user_name AND password=@password");
+  return result.recordset[0];
+
 }
 
 // ================== GET ROOM BY ID ==================
@@ -136,4 +157,5 @@ module.exports = {
   getRoomById,
   updateRoom,
   deleteRoom,
+  loginRoom,
 };

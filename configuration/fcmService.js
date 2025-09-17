@@ -38,4 +38,96 @@ async function sendNotification(fcmToken, message) {
   return admin.messaging().send(payload);
 }
 
-module.exports = { sendNotification };
+/**
+ * Send a silent notification (data-only payload) for Android.
+ * Silent notifications don't show a visible notification to the user.
+ * The app receives the data in the background and can process it silently.
+ */
+async function sendSilentNotification(fcmToken, data) {
+  // Validate inputs
+  if (typeof fcmToken !== 'string' || !fcmToken.trim()) {
+    throw new Error('FCM token is missing or empty');
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Data payload is required for silent notifications');
+  }
+
+  const payload = {
+    token: fcmToken.trim(),
+    data: {
+      // Convert all data values to strings (FCM requirement)
+      ...Object.keys(data).reduce((acc, key) => {
+        acc[key] = String(data[key]);
+        return acc;
+      }, {})
+    },
+    android: {
+      priority: 'high',
+      // This ensures the notification is delivered silently
+      data: {
+        // Add any additional Android-specific data here
+        silent: 'true'
+      }
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'background'
+      },
+      payload: {
+        aps: {
+          'content-available': 1
+        }
+      }
+    }
+  };
+
+  return admin.messaging().send(payload);
+}
+
+/**
+ * Send silent notification to multiple devices
+ */
+async function sendSilentNotificationToMultiple(tokens, data) {
+  if (!Array.isArray(tokens) || tokens.length === 0) {
+    throw new Error('Tokens array is required and cannot be empty');
+  }
+  if (!data || typeof data !== 'object') {
+    throw new Error('Data payload is required for silent notifications');
+  }
+
+  const payload = {
+    tokens: tokens,
+    data: {
+      ...Object.keys(data).reduce((acc, key) => {
+        acc[key] = String(data[key]);
+        return acc;
+      }, {})
+    },
+    android: {
+      priority: 'high',
+      data: {
+        silent: 'true'
+      }
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+        'apns-push-type': 'background'
+      },
+      payload: {
+        aps: {
+          'content-available': 1
+        }
+      }
+    }
+  };
+
+  return admin.messaging().sendMulticast(payload);
+}
+
+module.exports = { 
+  sendNotification, 
+  sendSilentNotification, 
+  sendSilentNotificationToMultiple 
+};

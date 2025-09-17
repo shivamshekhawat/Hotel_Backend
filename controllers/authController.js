@@ -1,6 +1,7 @@
 const hotelModel = require("../models/hotelModel");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { generateToken } = require("../configuration/tokenGenerator");
 
 const JWT_SECRET = process.env.JWT_SECRET || "JWT_SECRET"; // Ideally from env
 
@@ -78,7 +79,7 @@ const signup = async (req, res) => {
     }
 
     // 4️⃣ Hash password and create hotel
-    const hotel = await hotelModel.createHotelWithHash(req.body);
+    const hotel = await hotelModel.createHotel(req.body);
 
     res.status(201).json({
       message: "Hotel registered successfully",
@@ -103,11 +104,7 @@ const login = async (req, res) => {
     if (!isMatch) isMatch = Password === hotel.password;
     if (!isMatch) return res.status(401).json({ message: "Invalid credentials" });
 
-    const token = jwt.sign(
-      { hotel_id: hotel.hotel_id, session_id: session_id || null },
-      JWT_SECRET,
-      { expiresIn: 3153600000 } // 100 years in seconds
-    );
+    const token = generateToken({ hotel_id: hotel.hotel_id, session_id: session_id || null });
 
     await hotelModel.updateToken(hotel.hotel_id, token);
 

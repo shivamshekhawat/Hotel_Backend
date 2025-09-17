@@ -46,6 +46,9 @@ app.use("/api/languages", languageRoutes);
 const notificationRoutes = require("./routes/notificationRoutes");
 app.use("/api/notifications", notificationRoutes);
 
+const adminRoutes = require("./routes/adminRoutes");
+app.use("/api/admins", adminRoutes);
+
 
 // ================== Error Handling ==================
 app.use((err, req, res, next) => {
