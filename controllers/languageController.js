@@ -3,12 +3,21 @@ const languageModel = require("../models/languageModel");
 
 // Create language
 
+
 const createLanguage = async (req, res, next) => {
   try {
     const language = await languageModel.createLanguage(req.body);
-    res.status(201).json(language);
+    return res.status(201).json({
+      message: "Language created successfully",
+      data: language,
+    });
   } catch (err) {
-    next(err); // pass to global error handler
+    // If model attached a statusCode, use it (validation/duplicate errors)
+    if (err.statusCode) {
+      return res.status(err.statusCode).json({ error: err.message });
+    }
+    // otherwise pass to global handler
+    next(err);
   }
 };
 

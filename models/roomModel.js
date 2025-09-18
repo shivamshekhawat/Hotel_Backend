@@ -1,6 +1,8 @@
 const { sql } = require("../db");
 const bcrypt = require("bcryptjs");
 const roomControlModel = require("./roomControlModel");
+const roomTemperatureModel = require("./roomTemperatureModel");
+const DoNotDisturb = require("./doNotDisturbModel")
 
 // ================== CREATE ROOM ==================
 async function createRoom(roomData) {
@@ -18,48 +20,47 @@ async function createRoom(roomData) {
   const request = new sql.Request();
 
   // ✅ Check duplicate room
-  const duplicateCheck = await request
-    .input("hotel_id", sql.Int, hotel_id)
-    .input("room_number", sql.NVarChar, room_number)
-    .query("SELECT * FROM Rooms WHERE hotel_id=@hotel_id AND room_number=@room_number");
+  // Duplicate check
+const duplicateCheck = await new sql.Request()
+  .input("hotel_id", sql.Int, hotel_id)
+  .input("room_number", sql.NVarChar, room_number)
+  .query("SELECT * FROM Rooms WHERE hotel_id=@hotel_id AND room_number=@room_number");
 
-  if (duplicateCheck.recordset.length > 0) {
-    return { error: `Room ${room_number} already exists for hotel ${hotel_id}.` };
-  }
+if (duplicateCheck.recordset.length > 0) {
+  return { error: `Room ${room_number} already exists for hotel ${hotel_id}.` };
+}
 
-  // ✅ Hash password
-  // let hashedPassword = null;
-  // if (password) {
-  //   const salt = await bcrypt.genSalt(10);
-  //   hashedPassword = await bcrypt.hash(password, salt);
-  // }
+// Insert new room
+const result = await new sql.Request()
+  .input("hotel_id", sql.Int, hotel_id)
+  .input("room_number", sql.NVarChar, room_number)
+  .input("room_type", sql.NVarChar, room_type || "Standard")
+  .input("price", sql.Float, price || 0)
+  .input("availability", sql.Bit, availability ?? true)
+  .input("capacity_adults", sql.Int, capacity_adults || 2)
+  .input("capacity_children", sql.Int, capacity_children || 0)
+  .input("password", sql.NVarChar, password)
+  .query(`
+    INSERT INTO Rooms
+    (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password)
+    OUTPUT INSERTED.*
+    VALUES (@hotel_id, @room_number, @room_type, @price, @availability, @capacity_adults, @capacity_children, @password)
+  `);
 
-  // ✅ Insert new room
-  const result = await request
-    .input("hotel_id", sql.Int, hotel_id)
-    .input("room_number", sql.NVarChar, room_number)
-    .input("room_type", sql.NVarChar, room_type || "Standard")
-    .input("price", sql.Float, price || 0)
-    .input("availability", sql.Bit, availability ?? true)
-    .input("capacity_adults", sql.Int, capacity_adults || 2)
-    .input("capacity_children", sql.Int, capacity_children || 0)
-    .input("password", sql.NVarChar, password)
-    .query(`
-      INSERT INTO Rooms
-      (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password)
-      OUTPUT INSERTED.*
-      VALUES (@hotel_id, @room_number, @room_type, @price, @availability, @capacity_adults, @capacity_children, @password)
-    `);
+const insertedRoom = result.recordset[0];
+delete insertedRoom.password;
 
-  const insertedRoom = result.recordset[0];
-  delete insertedRoom.password; // Do not return password
+// Insert DND
 
-  // await request.input("room_id", sql.Int, insertedRoom.room_id)
-  //   .query(`INSERT INTO RoomTemperature (room_id, temperature, create_date, update_date) 
-  //           VALUES (@room_id, 24.0, GETDATE(), GETDATE())`);
-  await request.input("room_id", sql.Int, insertedRoom.room_id)
-    .query(`INSERT INTO DND (room_id, is_active, create_date, update_date) 
-            VALUES (@room_id, 0, GETDATE(), GETDATE())`);
+  await new sql.Request()
+  .input("room_id", sql.Int, insertedRoom.room_id)
+  .input("is_active", sql.Bit, 0)
+  .input("updated_time", sql.DateTime, new Date())
+  .query(`
+    INSERT INTO DoNotDisturb (room_id, is_active, updated_time) 
+    OUTPUT INSERTED.*
+    VALUES (@room_id, @is_active, @updated_time)
+  `);
 
   await roomControlModel.createRoomControl({room_id: insertedRoom.room_id, master_light: 0, reading_light: 0, master_curtain: 0, master_window: 0, light_mode: "Warm"});
   await roomTemperatureModel.createRoomTemperature({room_id: insertedRoom.room_id, temperature: 24.0});

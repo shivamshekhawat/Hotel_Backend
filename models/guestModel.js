@@ -2,7 +2,7 @@ const { sql } = require("../db");
 
 // Create a new guest (avoid duplicates by email/phone)
 async function createGuest(guestData) {
-  const { first_name, last_name, email, phone, language } = guestData;
+  const { first_name, last_name, email, phone, language, hotel_id } = guestData;
 
   if (!first_name || !email) {
     throw new Error("first_name and email are required fields");
@@ -10,7 +10,7 @@ async function createGuest(guestData) {
 
   const request = new sql.Request();
 
-  // 🔎 Check if a guest already exists with same email or phone
+  // 🔎 Check if guest already exists
   const checkQuery = `
     SELECT * FROM Guests WHERE email = @email OR phone = @phone
   `;
@@ -20,21 +20,22 @@ async function createGuest(guestData) {
     .query(checkQuery);
 
   if (existing.recordset.length > 0) {
-    // ❌ Throw error instead of silently returning existing guest
+    // ❌ THROW error (don’t return an object)
     throw new Error("Guest with this email or phone already exists");
   }
 
-  // 🚀 Insert new guest
+  // 🚀 Insert guest
   const result = await request
     .input("first_name", sql.NVarChar, first_name)
     .input("last_name", sql.NVarChar, last_name || "")
     .input("email", sql.NVarChar, email)
     .input("phone", sql.NVarChar, phone || "")
     .input("language", sql.NVarChar, language || "EN")
+    .input("hotel_id", sql.Int, hotel_id)
     .query(`
-      INSERT INTO Guests (first_name, last_name, email, phone, language)
+      INSERT INTO Guests (first_name, last_name, email, phone, language, hotel_id)
       OUTPUT inserted.*
-      VALUES (@first_name, @last_name, @email, @phone, @language)
+      VALUES (@first_name, @last_name, @email, @phone, @language, @hotel_id)
     `);
 
   return result.recordset[0];

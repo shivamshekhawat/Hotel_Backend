@@ -1,6 +1,6 @@
 const { sql } = require("../db");
 const bcrypt = require("bcryptjs");
-
+const { v4: uuidv4, validate: uuidValidate } = require("uuid");
 // ✅ Create admin in DB
 async function createAdmin(adminData) {
   const {
@@ -15,23 +15,31 @@ async function createAdmin(adminData) {
     password,
   } = adminData;
 
+  // const hashedPassword = await bcrypt.hash(password, 10);
   const request = new sql.Request();
-  return await request
+  const sessionId = (session_id && uuidValidate(session_id)) ? session_id : uuidv4();
+
+  const result = await request
     .input("first_name", sql.NVarChar, first_name || "")
     .input("last_name", sql.NVarChar, last_name || "")
     .input("email", sql.NVarChar, email || "")
     .input("mobile_number", sql.NVarChar, mobile_number || "")
     .input("token", sql.NVarChar, token || "")
     .input("role", sql.NVarChar, role || "admin")
-    .input("session_id", sql.NVarChar, session_id || "")
+    .input("session_id", sql.UniqueIdentifier, sessionId)
     .input("username", sql.NVarChar, username || "")
-    .input("password", sql.NVarChar, password || "")
+    .input("password", sql.NVarChar, password)
     .query(`
-      INSERT INTO Admins 
+      INSERT INTO Admins
       (first_name, last_name, email, mobile_number, token, role, session_id, username, password)
-      VALUES (@first_name, @last_name, @email, @mobile_number, @token, @role, @session_id, @username, @password)
+      VALUES (@first_name, @last_name, @email, @mobile_number, @token, @role, @session_id, @username, @password);
+    SELECT SCOPE_IDENTITY() as admin_id;
     `);
+
+  console.log("SQL Result:", result); // Debug log
+  return result.recordset[0];
 }
+
 
 // ✅ Find admin by username
 async function findAdminByUsername(username) {
@@ -115,7 +123,8 @@ async function updateAdmin(adminId, adminData) {
     .input("mobile_number", sql.NVarChar, mobile_number)
     .input("token", sql.NVarChar, token)
     .input("role", sql.NVarChar, role)
-    .input("session_id", sql.NVarChar, session_id)
+    .input("session_id", sql.UniqueIdentifier, (session_id && uuidValidate(session_id)) ? session_id : uuidv4())
+
     .input("username", sql.NVarChar, username)
     .input("password", sql.NVarChar, password)
     .query(`

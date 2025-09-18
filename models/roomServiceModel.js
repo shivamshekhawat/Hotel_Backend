@@ -8,10 +8,9 @@ async function createRoomService(data) {
     throw new Error("reservation_id and service_type are required");
   }
 
-  const request = new sql.Request();
-
   // 🔎 Check if a request already exists for this reservation_id
-  const existing = await request
+  const checkRequest = new sql.Request();
+  const existing = await checkRequest
     .input("reservation_id", sql.Int, reservation_id)
     .query(`SELECT * FROM RoomServices WHERE reservation_id = @reservation_id`);
 
@@ -19,8 +18,9 @@ async function createRoomService(data) {
     throw new Error("Room service request for this reservation already exists");
   }
 
-  // 🚀 Insert new request
-  const result = await request
+  // 🚀 Insert new request (use a fresh request object)
+  const insertRequest = new sql.Request();
+  const result = await insertRequest
     .input("reservation_id", sql.Int, reservation_id)
     .input("service_type", sql.NVarChar, service_type)
     .input("request_time", sql.DateTime, request_time ? new Date(request_time) : new Date())

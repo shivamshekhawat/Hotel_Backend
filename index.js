@@ -6,9 +6,11 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // ================== Middleware ==================
+// Enable JSON body parsing
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 
+// If you send URL-encoded data
+app.use(express.urlencoded({ extended: true }));
 // ================== Connect to Database ==================
 connectDB();
 

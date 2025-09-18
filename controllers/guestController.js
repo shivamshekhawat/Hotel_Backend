@@ -3,12 +3,29 @@ const guestModel = require("../models/guestModel");
 
 // Create guest
 
+
 const createGuest = async (req, res, next) => {
   try {
+    // ✅ Basic request body validation
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({ error: "Request body is required" });
+    }
+
     const guest = await guestModel.createGuest(req.body);
-    res.status(201).json(guest); // return guest (new or existing)
+
+    // ✅ Created successfully
+    res.status(201).json({
+      message: "Guest created successfully",
+      data: guest,
+    });
   } catch (err) {
-    next(err); // pass to global error handler
+    // ❌ Handle duplicate guest error gracefully
+    if (err.message.includes("already exists")) {
+      return res.status(409).json({ error: err.message }); // 409 Conflict
+    }
+
+    // Pass unknown errors to global handler
+    next(err);
   }
 };
 
