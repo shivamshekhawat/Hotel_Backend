@@ -2,6 +2,8 @@ const hotelModel = require("../models/hotelModel");
 const { body, validationResult } = require("express-validator");
 const bcrypt = require("bcryptjs");
 const { sql, pool } = require("../db");
+const adminModel = require("../models/adminModel");
+const jwt = require("jsonwebtoken");
 
  
 // Validation rules for hotel signup
@@ -45,13 +47,6 @@ const validateHotel = [
     .trim()
     .notEmpty().withMessage("Postal_code is required"),
 
-  body("UserName")
-    .trim()
-    .notEmpty().withMessage("UserName is required"),
-
-  body("Password")
-    .notEmpty().withMessage("Password is required")
-    .isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
 ];
 
 
@@ -70,10 +65,45 @@ const checkValidation = (req, res, next) => {
  
 const createHotel = async (req, res, next) => {
   try {
-    const { UserName, Password } = req.body;
+    let username = null;
+    
+    // Extract Bearer token from Authorization header
+    const authHeader = req.headers.authorization;
+    let adminId = null;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      console.log(`Extracted token: ${token}`);
+      
+      try {
+        // Decode the JWT token to extract admin ID
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.role === "admin") {
+          adminId = decoded.userId;
+          if(!adminId) {
+            return res.status(400).json({ error: "Invalid Token" });
+          }
+          else{
+            console.log(`Extracted admin ID: ${adminId}`);
+            const { username } = await adminModel.getAdminById(adminId);
+            req.body.access_token = await token;
+            console.log('req.body.UserName', username);
+            req.body.UserName = await username;
+          
+            console.log('req.body.UserName', req.body.UserName);
+          }
+        } else {
+          console.log('Invelid Token');
+        } 
+      } catch (decodeError) {
+        console.error('Error decoding token:', decodeError);
+      }
+    } else {
+      console.log('No Bearer token found in Authorization header');
+    }
 
     // Check if hotel username already exists
-    const existingHotel = await hotelModel.findHotelByUsername(UserName);
+    const existingHotel = await hotelModel.findHotelByUsername(username);
     if (existingHotel) {
       return res.status(400).json({ error: "Hotel with this username already exists" });
     }
@@ -82,9 +112,10 @@ const createHotel = async (req, res, next) => {
     // const hashedPassword = await bcrypt.hash(Password, 10);
 
     // Save hotel
-    await hotelModel.createHotelWithHash({ ...req.body, Password: hashedPassword });
+    const result = await hotelModel.createHotel({ ...req.body });
+    console.log('result', result);
 
-    res.status(201).json({ message: "Hotel created successfully" });
+    res.status(201).json({ message: "Hotel created successfully", hotel: result.recordset[0]});
   } catch (err) {
     next(err); // pass to global error handler
   }

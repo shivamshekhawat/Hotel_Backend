@@ -121,8 +121,9 @@ const adminLogin = async (req, res) => {
     // 6️⃣ Update token in DB
     await adminModel.updateAdminToken(admin.admin_id, token);
 
-    // 7️⃣ Prepare admin data without password
+  
     const { password: _, ...adminData } = admin;
+    console.log("Admin data:", adminData);
     
 
     // 8️⃣ Return success
@@ -152,17 +153,7 @@ const getAllAdmins = async (req, res) => {
   }
 };
 
-// ---------------- Get Admin by ID ----------------
-const getAdminById = async (req, res) => {
-  try {
-    const admin = await adminModel.getAdminById(req.params.id);
-    if (!admin) return res.status(404).json({ error: "Admin not found" });
-    res.json({ message: "Admin retrieved successfully", admin });
-  } catch (err) {
-    console.error("Get admin by ID error:", err);
-    res.status(500).json({ error: "Unable to get admin by ID" });
-  }
-};
+
 
 // ---------------- Update Admin ----------------
 const updateAdmin = async (req, res) => {
@@ -182,7 +173,16 @@ const updateAdmin = async (req, res) => {
     res.json({ message: "Admin updated successfully", admin_id: id });
 
   } catch (err) {
-    console.error("Update admin error:", err);
+    // console.error("Update admin error:", err);
+    
+    // Handle specific error cases
+    if (err.message === "Email already exists") {
+      return res.status(400).json({ error: "Email already exists" });
+    }
+    if (err.message === "Mobile number already exists") {
+      return res.status(400).json({ error: "Mobile number already exists" });
+    }
+    
     res.status(500).json({ error: "Internal server error" });
   }
 };
@@ -206,7 +206,6 @@ module.exports = {
   createAdmin,
   adminLogin,
   getAllAdmins,
-  getAdminById,
   updateAdmin,
   deleteAdmin
 };

@@ -18,8 +18,8 @@ connectDB();
 const hotelRoutes = require("./routes/hotelRoutes");
 app.use("/api/hotels", hotelRoutes);
 
-const authRoutes = require("./routes/authRoutes");
-app.use("/api/auth", authRoutes);
+// const authRoutes = require("./routes/authRoutes");
+// app.use("/api/auth", authRoutes);
 
 const roomRoutes = require("./routes/roomRoutes");
 app.use("/api/rooms", roomRoutes);

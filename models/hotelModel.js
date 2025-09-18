@@ -13,12 +13,12 @@ async function createHotel(hotelData) {
     Country,
     Postal_code,
     UserName,
-    Password,
     access_token,
   } = hotelData;
 
  
   const request = new sql.Request();
+  console.log('hotelData', UserName);
   return await request
     .input("Name", sql.NVarChar, Name || "")
     .input("Logo_url", sql.NVarChar, Logo_url || "")
@@ -29,12 +29,12 @@ async function createHotel(hotelData) {
     .input("Country", sql.NVarChar, Country || "")
     .input("Postal_code", sql.NVarChar, Postal_code || "")
     .input("UserName", sql.NVarChar, UserName || "")
-    .input("Password", sql.NVarChar, Password || "")
     .input("access_token", sql.NVarChar, access_token || "")
     .query(`
       INSERT INTO Hotels 
-      (name, logo_url, established_year, address, service_care_no, city, country, postal_code, username, password, access_token)
-      VALUES (@Name, @Logo_url, @Established_year, @Address, @Service_care_no, @City, @Country, @Postal_code, @UserName, @Password, @access_token)
+      (name, logo_url, established_year, address, service_care_no, city, country, postal_code, username, access_token)
+      OUTPUT inserted.*
+      VALUES (@Name, @Logo_url, @Established_year, @Address, @Service_care_no, @City, @Country, @Postal_code, @UserName, @access_token)
     `);
 }
 

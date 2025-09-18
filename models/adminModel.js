@@ -74,7 +74,7 @@ async function updateAdminToken(admin_id, token) {
   return await request
     .input("admin_id", sql.Int, admin_id)
     .input("token", sql.NVarChar, token)
-    .query("UPDATE Admins SET token=@token WHERE admin_id=@admin_id");
+    .query("UPDATE Admins SET token=@token, updated_at=GETDATE() WHERE admin_id=@admin_id");
 }
 
 // ✅ Get all admins (exclude password)
@@ -110,9 +110,24 @@ async function updateAdmin(adminId, adminData) {
     token,
     role,
     session_id,
-    username,
     password,
   } = adminData;
+
+  // Check for duplicate email (only if email is being updated)
+  if (email) {
+    const existingAdminByEmail = await findAdminByEmail(email);
+    if (existingAdminByEmail && existingAdminByEmail.admin_id != adminId) {
+      throw new Error("Email already exists");
+    }
+  }
+
+  // Check for duplicate mobile (only if mobile is being updated)
+  if (mobile_number) {
+    const existingAdminByMobile = await findAdminByMobile(mobile_number);
+    if (existingAdminByMobile && existingAdminByMobile.admin_id != adminId) {
+      throw new Error("Mobile number already exists");
+    }
+  }
 
   const request = new sql.Request();
   return await request
@@ -124,14 +139,12 @@ async function updateAdmin(adminId, adminData) {
     .input("token", sql.NVarChar, token)
     .input("role", sql.NVarChar, role)
     .input("session_id", sql.UniqueIdentifier, (session_id && uuidValidate(session_id)) ? session_id : uuidv4())
-
-    .input("username", sql.NVarChar, username)
     .input("password", sql.NVarChar, password)
     .query(`
       UPDATE Admins
       SET first_name=@first_name, last_name=@last_name, email=@email,
           mobile_number=@mobile_number, token=@token, role=@role,
-          session_id=@session_id, username=@username, password=@password
+          session_id=@session_id, password=@password
       WHERE admin_id=@admin_id
     `);
 }
