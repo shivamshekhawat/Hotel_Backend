@@ -315,7 +315,7 @@ exports.roomAction = async (req, res) => {
     // Now call the dashboard API controller with the updated room ID
     req.params.id = roomId;
     await exports.getRoomDashboard(req, res);
-
+ 
   } catch (error) {
     console.error("Room action API error:", error);
     res.status(500).json({
