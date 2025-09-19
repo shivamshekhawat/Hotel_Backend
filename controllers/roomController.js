@@ -305,11 +305,13 @@ exports.roomAction = async (req, res) => {
 
     // Update check-in status if provided
     if (isCheckin !== undefined) {
-      const {reservation_id} = await reservationModel.getReservationByRoomId(roomId);
-      await reservationModel.updateReservation(reservation_id, { is_checked_in: isCheckin });
-      // This would typically update a reservation or guest status
-      // For now, we'll just log it
-      console.log(`Room ${roomId} check-in status: ${isCheckin}`);
+      const reservation = await reservationModel.getReservationByRoomId(roomId);
+      if (reservation) {
+        await reservationModel.updateReservation(reservation.reservation_id, { is_checked_in: isCheckin });
+        console.log(`Room ${roomId} check-in status updated to: ${isCheckin}`);
+      } else {
+        console.log(`No active reservation found for room ${roomId}`);
+      }
     }
 
     // Now call the dashboard API controller with the updated room ID

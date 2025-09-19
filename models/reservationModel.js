@@ -75,18 +75,35 @@ async function getReservationById(reservation_id) {
 async function updateReservation(reservation_id, data) {
   const { guest_id, room_id, check_in_time, check_out_time, is_checked_in } = data;
 
-  if (new Date(check_out_time) <= new Date(check_in_time)) {
-    throw new Error("check_out_time must be later than check_in_time");
+  // Get current reservation to check if it's currently checked in
+  const currentReservation = await getReservationById(reservation_id);
+  if (!currentReservation) {
+    throw new Error("Reservation not found");
+  }
+
+  // If changing from checked in (true) to checked out (false), update checkout time
+  let finalCheckOutTime = check_out_time;
+  if (currentReservation.is_checked_in === true && is_checked_in === false) {
+    // Update checkout time to current time when checking out
+    finalCheckOutTime = new Date().toISOString();
+    console.log(`Guest checking out - updating checkout time to: ${finalCheckOutTime}`);
+  }
+
+  // Validate check-in/out times only if both are provided
+  if (check_in_time && finalCheckOutTime) {
+    if (new Date(finalCheckOutTime) <= new Date(check_in_time)) {
+      throw new Error("check_out_time must be later than check_in_time");
+    }
   }
 
   const request = new sql.Request();
   await request
     .input("reservation_id", sql.Int, reservation_id)
-    .input("guest_id", sql.Int, guest_id)
-    .input("room_id", sql.Int, room_id)
-    .input("check_in_time", sql.DateTime, new Date(check_in_time))
-    .input("check_out_time", sql.DateTime, new Date(check_out_time))
-    .input("is_checked_in", sql.Bit, is_checked_in || false)
+    .input("guest_id", sql.Int, guest_id || currentReservation.guest_id)
+    .input("room_id", sql.Int, room_id || currentReservation.room_id)
+    .input("check_in_time", sql.DateTime, check_in_time ? new Date(check_in_time) : currentReservation.check_in_time)
+    .input("check_out_time", sql.DateTime, finalCheckOutTime ? new Date(finalCheckOutTime) : currentReservation.check_out_time)
+    .input("is_checked_in", sql.Bit, is_checked_in !== undefined ? is_checked_in : currentReservation.is_checked_in)
     .query(`
       UPDATE Reservations
       SET guest_id = @guest_id,

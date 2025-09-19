@@ -12,7 +12,9 @@ const createFeedback = async (req, res) => {
 
     if (existingFeedback) {
       return res.status(400).json({
-        message: "Feedback already submitted for this reservation.",
+        message: "Feedback already submitted for this reservation",
+        status: 0,
+        response: null
       });
     }
 
@@ -24,9 +26,17 @@ const createFeedback = async (req, res) => {
       submitted_time: new Date(), // force current time
     });
 
-    res.status(201).json(feedback);
+    res.status(201).json({
+      message: "Feedback created successfully",
+      status: 1,
+      response: feedback
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
   }
 };
 
@@ -35,9 +45,17 @@ const createFeedback = async (req, res) => {
 const getAllFeedback = async (req, res) => {
   try {
     const feedbacks = await feedbackModel.getAllFeedback();
-    res.json(feedbacks);
+    res.json({
+      message: "Feedbacks retrieved successfully",
+      status: 1,
+      response: feedbacks
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
   }
 };
 
@@ -46,11 +64,23 @@ const getFeedback = async (req, res) => {
   try {
     const feedback = await feedbackModel.getFeedbackById(req.params.id);
     if (!feedback) {
-      return res.status(404).json({ message: "Feedback not found" });
+      return res.status(404).json({
+        message: "Feedback not found",
+        status: 0,
+        response: null
+      });
     }
-    res.json(feedback);
+    res.json({
+      message: "Feedback retrieved successfully",
+      status: 1,
+      response: feedback
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
   }
 };
 
@@ -58,9 +88,17 @@ const getFeedback = async (req, res) => {
 const updateFeedback = async (req, res) => {
   try {
     const updated = await feedbackModel.updateFeedback(req.params.id, req.body);
-    res.json(updated);
+    res.json({
+      message: "Feedback updated successfully",
+      status: 1,
+      response: updated
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
   }
 };
 
@@ -68,9 +106,17 @@ const updateFeedback = async (req, res) => {
 const deleteFeedback = async (req, res) => {
   try {
     await feedbackModel.deleteFeedback(req.params.id);
-    res.json({ message: "Feedback deleted successfully" });
+    res.json({
+      message: "Feedback deleted successfully",
+      status: 1,
+      response: null
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
   }
 };
 
