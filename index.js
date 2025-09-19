@@ -28,15 +28,19 @@ app.use("/api/hotels", hotelRoutes);
 
 const roomRoutes = require("./routes/roomRoutes");
 app.use("/api/rooms", roomRoutes);
+
 const guestRoutes = require("./routes/guestRoutes");
 app.use("/api/guests", guestRoutes);
+
 const reservationRoutes = require("./routes/reservationRoutes");
 app.use("/api/reservations", reservationRoutes);
 
 const roomServiceRoutes = require("./routes/roomServiceRoutes");
 app.use("/api/roomservices", roomServiceRoutes);
+
 const technicalIssueRoutes = require("./routes/technicalIssueRoutes");
 app.use("/api/technicalissues", technicalIssueRoutes);
+
 const roomControlRoutes = require("./routes/roomControlRoutes");
 app.use("/api/roomcontrols", roomControlRoutes);
 
@@ -45,6 +49,7 @@ app.use("/api/roomtemperatures", roomTemperatureRoutes);
 
 const dndRoutes = require("./routes/doNotDisturbRoutes");
 app.use("/api/dnd", dndRoutes);
+
 const feedbackRoutes = require("./routes/feedbackRoutes");
 app.use("/api/feedback", feedbackRoutes);
 
@@ -56,6 +61,9 @@ app.use("/api/notifications", notificationRoutes);
 const adminRoutes = require("./routes/adminRoutes");
 app.use("/api/admins", adminRoutes);
 
+// ================== Start Weather Scheduler ==================
+const { startWeatherScheduler } = require("./controllers/roomController");
+startWeatherScheduler();
 
 // ================== Error Handling ==================
 app.use((err, req, res, next) => {

@@ -236,18 +236,299 @@ async function getCleanRoomStatus(roomId) {
   }
 }
 
+// Weather data storage (in-memory object)
+let weatherData = {
+  time: new Date().toISOString(),
+  tempC: 25,
+  weather_code: 0,
+  condition: "Clear",
+  weather_image: "sunny.png"
+};
+
+// Weather API configuration
+const WEATHER_API_BASE_URL = "https://api.open-meteo.com/v1/forecast";
+const WEATHER_UPDATE_INTERVAL = 20 * 60 * 1000; // 20 minutes in milliseconds
+
+// Weather code to condition mapping (matching Kotlin implementation)
+const WEATHER_CONDITIONS = {
+  0: "Clear sky",
+  1: "Mainly clear",
+  2: "Partly cloudy",
+  3: "Overcast",
+  45: "Fog",
+  48: "Fog",
+  51: "Drizzle",
+  53: "Drizzle",
+  55: "Drizzle",
+  56: "Freezing drizzle",
+  57: "Freezing drizzle",
+  61: "Rain",
+  63: "Rain",
+  65: "Rain",
+  66: "Freezing rain",
+  67: "Freezing rain",
+  71: "Snow",
+  73: "Snow",
+  75: "Snow",
+  77: "Snow grains",
+  80: "Rain showers",
+  81: "Rain showers",
+  82: "Rain showers",
+  85: "Snow showers",
+  86: "Snow showers",
+  95: "Thunderstorm",
+  96: "Thunderstorm with hail",
+  99: "Thunderstorm with hail"
+};
+
+// Weather code to image mapping (matching Kotlin implementation)
+const WEATHER_IMAGES = {
+  0: "assets/sunny.png",
+  1: "assets/pcloudy.png",
+  2: "assets/pcloudy.png",
+  3: "assets/pcloudy.png",
+  45: "assets/Foggy.png",
+  48: "assets/Foggy.png",
+  51: "assets/Lrain.png",
+  53: "assets/Lrain.png",
+  55: "assets/Lrain.png",
+  56: "assets/Sleet.png",
+  57: "assets/Sleet.png",
+  61: "assets/Rain.png",
+  63: "assets/Rain.png",
+  65: "assets/Rain.png",
+  66: "assets/Sleet.png",
+  67: "assets/Sleet.png",
+  71: "assets/Snow.png",
+  73: "assets/Snow.png",
+  75: "assets/Snow.png",
+  77: "assets/Snow.png",
+  80: "assets/Rain.png",
+  81: "assets/Rain.png",
+  82: "assets/Rain.png",
+  85: "assets/Snow.png",
+  86: "assets/Snow.png",
+  95: "assets/TStorm.png",
+  96: "assets/TStorm.png",
+  99: "assets/TStorm.png"
+};
+
 // Helper function to get weather information
 function getWeatherInfo() {
-  // This would typically call a weather API
-  // For now, returning mock data
-  return {
-    time: new Date().toISOString(),
-    tempC: 25,
-    weather_code: 0,
-    condition: "Clear",
-    weather_image: "sunny.png"
-  };
+  return weatherData;
 }
+
+// Function to get current system location
+async function getCurrentSystemLocation() {
+  try {
+    // Try to get location from IP geolocation service
+    const response = await fetch('http://ip-api.com/json/');
+    if (!response.ok) {
+      throw new Error('Failed to fetch location from IP service');
+    }
+    
+    const locationData = await response.json();
+    
+    if (locationData.status === 'success' && locationData.lat && locationData.lon) {
+      console.log(`System location detected: ${locationData.city}, ${locationData.country} (${locationData.lat}, ${locationData.lon})`);
+      return {
+        latitude: locationData.lat,
+        longitude: locationData.lon,
+        city: locationData.city,
+        country: locationData.country
+      };
+    } else {
+      throw new Error('Invalid location data received');
+    }
+  } catch (error) {
+    console.warn('Could not detect system location:', error.message);
+    console.log('Falling back to default location (New York)');
+    
+    // Fallback to default location
+    return {
+      latitude: 40.7128,
+      longitude: -74.0060,
+      city: 'New York',
+      country: 'United States'
+    };
+  }
+}
+
+// Function to build weather API URL
+async function buildWeatherApiUrl() {
+  try {
+    const location = await getCurrentSystemLocation();
+    const url = `${WEATHER_API_BASE_URL}?latitude=${location.latitude}&longitude=${location.longitude}&current=temperature_2m,weather_code&timezone=auto`;
+    console.log(`Weather API URL built for ${location.city}, ${location.country}`);
+    return url;
+  } catch (error) {
+    console.error('Error building weather API URL:', error.message);
+    // Fallback to default location
+    const latitude = 40.7128;
+    const longitude = -74.0060;
+    return `${WEATHER_API_BASE_URL}?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weather_code&timezone=auto`;
+  }
+}
+
+// Function to get weather image from code (matching Kotlin implementation)
+function getWeatherImageFromCode(weatherCode) {
+  const imageName = (() => {
+    switch (weatherCode) {
+      case 0:
+        return "assets/sunny.png";                    // Clear sky
+      case 1:
+      case 2:
+      case 3:
+        return "assets/pcloudy.png";                  // Mainly clear, partly cloudy, overcast
+      case 45:
+      case 48:
+        return "assets/Foggy.png";                   // Fog and depositing rime fog
+      case 51:
+      case 53:
+      case 55:
+        return "assets/Lrain.png";                   // Drizzle: Light, moderate, dense intensity
+      case 56:
+      case 57:
+        return "assets/Sleet.png";                   // Freezing Drizzle: Light and dense intensity
+      case 61:
+      case 63:
+      case 65:
+        return "assets/Rain.png";                    // Rain: Slight, moderate and heavy intensity
+      case 66:
+      case 67:
+        return "assets/Sleet.png";                   // Freezing Rain: Light and heavy intensity
+      case 71:
+      case 73:
+      case 75:
+        return "assets/Snow.png";                    // Snow fall: Slight, moderate, and heavy intensity
+      case 77:
+        return "assets/Snow.png";                    // Snow grains
+      case 80:
+      case 81:
+      case 82:
+        return "assets/Rain.png";                    // Rain showers: Slight, moderate, and violent
+      case 85:
+      case 86:
+        return "assets/Snow.png";                    // Snow showers slight and heavy
+      case 95:
+        return "assets/TStorm.png";                  // Thunderstorm: Slight or moderate
+      case 96:
+      case 99:
+        return "assets/TStorm.png";                  // Thunderstorm with slight and heavy hail
+      default:
+        return "assets/mcloudy.png";                 // Default to mostly cloudy for unknown codes
+    }
+  })();
+  
+  return imageName;
+}
+
+// Function to get weather type from code (matching Kotlin implementation)
+function getWeatherTypeFromCode(weatherCode) {
+  switch (weatherCode) {
+    case 0:
+      return "Clear sky";
+    case 1:
+      return "Mainly clear";
+    case 2:
+      return "Partly cloudy";
+    case 3:
+      return "Overcast";
+    case 45:
+    case 48:
+      return "Fog";
+    case 51:
+    case 53:
+    case 55:
+      return "Drizzle";
+    case 56:
+    case 57:
+      return "Freezing drizzle";
+    case 61:
+    case 63:
+    case 65:
+      return "Rain";
+    case 66:
+    case 67:
+      return "Freezing rain";
+    case 71:
+    case 73:
+    case 75:
+      return "Snow";
+    case 77:
+      return "Snow grains";
+    case 80:
+    case 81:
+    case 82:
+      return "Rain showers";
+    case 85:
+    case 86:
+      return "Snow showers";
+    case 95:
+      return "Thunderstorm";
+    case 96:
+    case 99:
+      return "Thunderstorm with hail";
+    default:
+      return "Unknown";
+  }
+}
+
+// Function to fetch and save weather data
+async function fetchAndSaveWeatherData() {
+  try {
+    console.log(`Fetching weather data at: ${new Date().toISOString()}`);
+    
+    const apiUrl = await buildWeatherApiUrl();
+    if (!apiUrl) {
+      console.log("Error: Could not determine server location for weather API");
+      return;
+    }
+    
+    console.log(`Using weather API URL: ${apiUrl}`);
+    
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const weatherResponse = await response.json();
+    
+    if (weatherResponse && weatherResponse.current) {
+      const currentWeather = weatherResponse.current;
+      const weatherImage = getWeatherImageFromCode(currentWeather.weather_code);
+      const weatherType = getWeatherTypeFromCode(currentWeather.weather_code);
+      
+      // Update the in-memory weather data object
+      weatherData = {
+        time: currentWeather.time,
+        tempC: Math.round(currentWeather.temperature_2m),
+        weather_code: currentWeather.weather_code,
+        condition: weatherType,
+        weather_image: weatherImage
+      };
+      
+      console.log(`Weather data saved successfully: ${weatherType}, ${currentWeather.temperature_2m}°C, Image: ${weatherImage}`);
+    }
+    
+  } catch (error) {
+    console.error("Error fetching weather data:", error.message);
+  }
+}
+
+// Start the weather data scheduler
+function startWeatherScheduler() {
+  // Initial fetch
+  fetchAndSaveWeatherData();
+  
+  // Set up interval for periodic updates
+  setInterval(fetchAndSaveWeatherData, WEATHER_UPDATE_INTERVAL);
+  
+  console.log("Weather scheduler started - fetching every 20 minutes");
+}
+
+// Export the scheduler function
+exports.startWeatherScheduler = startWeatherScheduler;
 
 // Helper function to get contact information
 function getContactInfo(hotel) {
