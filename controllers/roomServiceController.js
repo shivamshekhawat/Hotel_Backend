@@ -6,11 +6,19 @@ const roomServiceModel = require("../models/roomServiceModel");
 const createRoomService = async (req, res, next) => {
   try {
     const service = await roomServiceModel.createRoomService(req.body);
-    res.status(201).json(service);
+    res.status(201).json({
+      message: "Room service created successfully",
+      status: 1,
+      response: service
+    });
   } catch (err) {
     // Handle duplicate requests
     if (err.message.includes("already exists")) {
-      return res.status(409).json({ error: err.message }); // 409 Conflict
+      return res.status(409).json({
+        message: err.message,
+        status: 0,
+        response: null
+      });
     }
     next(err); // Pass unknown errors to global error handler
   }
@@ -20,8 +28,12 @@ const createRoomService = async (req, res, next) => {
 
 const getRoomServices = async (req, res, next) => {
   try {
-    const services = await roomServiceModel.getAllRoomServices();
-    res.json(services);
+    const services = await roomServiceModel.getAllRoomServices(req.body.reservation_id);
+    res.json({
+      message: "Room services retrieved successfully",
+      status: 1,
+      response: services
+    });
   } catch (err) {
     next(err);
   }
@@ -33,8 +45,18 @@ const getRoomServices = async (req, res, next) => {
 const getRoomService = async (req, res, next) => {
   try {
     const service = await roomServiceModel.getRoomServiceById(req.params.id);
-    if (!service) return res.status(404).json({ message: "Room service not found" });
-    res.json(service);
+    if (!service) {
+      return res.status(404).json({
+        message: "Room service not found",
+        status: 0,
+        response: null
+      });
+    }
+    res.json({
+      message: "Room service retrieved successfully",
+      status: 1,
+      response: service
+    });
   } catch (err) {
     next(err);
   }
@@ -46,7 +68,11 @@ const getRoomService = async (req, res, next) => {
 const updateRoomService = async (req, res, next) => {
   try {
     const updatedService = await roomServiceModel.updateRoomService(req.params.id, req.body);
-    res.json(updatedService);
+    res.json({
+      message: "Room service updated successfully",
+      status: 1,
+      response: updatedService
+    });
   } catch (err) {
     next(err);
   }
@@ -58,15 +84,17 @@ const updateRoomService = async (req, res, next) => {
 const deleteRoomService = async (req, res, next) => {
   try {
     await roomServiceModel.deleteRoomService(req.params.id);
-    res.json({ message: "Room service deleted successfully" });
+    res.json({
+      message: "Room service deleted successfully",
+      status: 1,
+      response: null
+    });
   } catch (err) {
     next(err);
   }
 };
 
-
 // Export
-
 module.exports = {
   createRoomService,
   getRoomServices,

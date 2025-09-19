@@ -80,6 +80,7 @@ async function updateAdminToken(admin_id, token) {
 // ✅ Get all admins (exclude password)
 async function getAllAdmins() {
   const request = new sql.Request();
+  
   const result = await request.query(`
     SELECT admin_id, first_name, last_name, email, mobile_number, token, role, session_id, username
     FROM Admins

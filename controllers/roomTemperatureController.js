@@ -1,7 +1,6 @@
 const roomTempModel = require("../models/roomTemperatureModel");
 
 // Create RoomTemperature
-
 const createRoomTemperature = async (req, res, next) => {
   try {
     const temp = await roomTempModel.createRoomTemperature(req.body);
@@ -13,7 +12,6 @@ const createRoomTemperature = async (req, res, next) => {
 
 
 // Get all RoomTemperatures
-
 const getRoomTemperatures = async (req, res, next) => {
   try {
     const temps = await roomTempModel.getAllRoomTemperatures();
@@ -25,7 +23,6 @@ const getRoomTemperatures = async (req, res, next) => {
 
 
 // Get RoomTemperature by room_id
-
 const getRoomTemperatureByRoomId = async (req, res, next) => {
   try {
     const temp = await roomTempModel.getRoomTemperatureByRoomId(req.params.room_id);
@@ -38,7 +35,6 @@ const getRoomTemperatureByRoomId = async (req, res, next) => {
 
 
 // Update RoomTemperature by room_id
-
 const updateRoomTemperatureByRoomId = async (req, res, next) => {
   try {
     const room_id = req.params.room_id;
@@ -52,7 +48,6 @@ const updateRoomTemperatureByRoomId = async (req, res, next) => {
 
 
 // Delete RoomTemperature by room_id
-
 const deleteRoomTemperature = async (req, res, next) => {
   try {
     await roomTempModel.deleteRoomTemperatureByRoomId(req.params.room_id);

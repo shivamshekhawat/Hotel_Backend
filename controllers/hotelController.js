@@ -103,10 +103,10 @@ const createHotel = async (req, res, next) => {
     }
 
     // Check if hotel username already exists
-    const existingHotel = await hotelModel.findHotelByUsername(username);
-    if (existingHotel) {
-      return res.status(400).json({ error: "Hotel with this username already exists" });
-    }
+    // const existingHotel = await hotelModel.findHotelByUsername(username);
+    // if (existingHotel) {
+    //   return res.status(400).json({ error: "Hotel with this username already exists" });
+    // }
 
     // Hash password
     // const hashedPassword = await bcrypt.hash(Password, 10);
@@ -125,12 +125,42 @@ const createHotel = async (req, res, next) => {
 // Fetch All Hotels Controller
  
 const getHotels = async (req, res, next) => {
-  try {
-    const result = await pool.request().query("SELECT * FROM Hotels");
+
+    const authHeader = req.headers.authorization;
+    let adminId = null;
+    let setUsername = null;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      console.log(`Extracted token: ${token}`);
+      try {
+        const decoded = jwt.decode(token);
+        if (decoded && decoded.role === "admin") {
+          adminId = decoded.userId;
+          if(!adminId) {
+            return res.status(400).json({ error: "Invalid Token" });
+          }
+          else{
+            console.log(`Extracted admin ID: ${adminId}`);
+            const { username } = await adminModel.getAdminById(adminId);
+            console.log('username', username);
+            setUsername = await username;
+          }
+        }
+        else{
+          return res.status(400).json({ error: "Invalid Token" });
+        }
+    
+    const result = await hotelModel.findHotelByUsername(setUsername);
+  
     res.json(result.recordset);
   } catch (err) {
     next(err); // pass to global error handler
   }
+}
+else{
+  return res.status(400).json({ error: "Invalid Token" });
+}
 };
 
 

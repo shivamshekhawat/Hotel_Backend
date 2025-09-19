@@ -6,7 +6,11 @@ const technicalIssueModel = require("../models/technicalIssueModel");
 const createTechnicalIssue = async (req, res, next) => {
   try {
     const issue = await technicalIssueModel.createTechnicalIssue(req.body);
-    res.status(201).json(issue);
+    res.status(201).json({
+      message: "Technical issue created successfully",
+      status: 1,
+      response: issue
+    });
   } catch (err) {
     next(err);
   }
@@ -18,7 +22,11 @@ const createTechnicalIssue = async (req, res, next) => {
 const getTechnicalIssues = async (req, res, next) => {
   try {
     const issues = await technicalIssueModel.getAllTechnicalIssues();
-    res.json(issues);
+    res.json({
+      message: "Technical issues retrieved successfully",
+      status: 1,
+      response: issues
+    });
   } catch (err) {
     next(err);
   }
@@ -30,8 +38,18 @@ const getTechnicalIssues = async (req, res, next) => {
 const getTechnicalIssue = async (req, res, next) => {
   try {
     const issue = await technicalIssueModel.getTechnicalIssueById(req.params.id);
-    if (!issue) return res.status(404).json({ message: "Issue not found" });
-    res.json(issue);
+    if (!issue) {
+      return res.status(404).json({
+        message: "Technical issue not found",
+        status: 0,
+        response: null
+      });
+    }
+    res.json({
+      message: "Technical issue retrieved successfully",
+      status: 1,
+      response: issue
+    });
   } catch (err) {
     next(err);
   }
@@ -43,8 +61,18 @@ const getTechnicalIssue = async (req, res, next) => {
 const updateTechnicalIssue = async (req, res, next) => {
   try {
     const updatedIssue = await technicalIssueModel.updateTechnicalIssue(req.params.id, req.body);
-    if (!updatedIssue) return res.status(404).json({ message: "Issue not found" });
-    res.json({ message: "Technical issue updated successfully", updatedIssue });
+    if (!updatedIssue) {
+      return res.status(404).json({
+        message: "Technical issue not found",
+        status: 0,
+        response: null
+      });
+    }
+    res.json({
+      message: "Technical issue updated successfully",
+      status: 1,
+      response: updatedIssue
+    });
   } catch (err) {
     next(err);
   }
@@ -56,7 +84,11 @@ const updateTechnicalIssue = async (req, res, next) => {
 const deleteTechnicalIssue = async (req, res, next) => {
   try {
     await technicalIssueModel.deleteTechnicalIssue(req.params.id);
-    res.json({ message: "Technical issue deleted successfully" });
+    res.json({
+      message: "Technical issue deleted successfully",
+      status: 1,
+      response: null
+    });
   } catch (err) {
     next(err);
   }

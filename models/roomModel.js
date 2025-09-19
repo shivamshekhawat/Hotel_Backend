@@ -14,6 +14,7 @@ async function createRoom(roomData) {
     availability,
     capacity_adults,
     capacity_children,
+    username,
     password,
   } = roomData;
 
@@ -21,19 +22,21 @@ async function createRoom(roomData) {
 
   // ✅ Check duplicate room
   // Duplicate check
-const duplicateCheck = await new sql.Request()
-  .input("hotel_id", sql.Int, hotel_id)
-  .input("room_number", sql.NVarChar, room_number)
-  .query("SELECT * FROM Rooms WHERE hotel_id=@hotel_id AND room_number=@room_number");
+// const duplicateCheck = await new sql.Request()
+//   .input("hotel_id", sql.Int, hotel_id)
+//   .input("room_number", sql.NVarChar, room_number)
+//   .input("username", sql.NVarChar, username)
+//   .query("SELECT * FROM Rooms WHERE hotel_id=@hotel_id AND room_number=@room_number AND username=@username");
 
-if (duplicateCheck.recordset.length > 0) {
-  return { error: `Room ${room_number} already exists for hotel ${hotel_id}.` };
-}
+// if (duplicateCheck.recordset.length > 0) {
+//   return { error: `Room ${room_number} already exists for hotel ${hotel_id}.` };
+// }
 
 // Insert new room
 const result = await new sql.Request()
   .input("hotel_id", sql.Int, hotel_id)
   .input("room_number", sql.NVarChar, room_number)
+  .input("username", sql.NVarChar, username)
   .input("room_type", sql.NVarChar, room_type || "Standard")
   .input("price", sql.Float, price || 0)
   .input("availability", sql.Bit, availability ?? true)
@@ -42,9 +45,9 @@ const result = await new sql.Request()
   .input("password", sql.NVarChar, password)
   .query(`
     INSERT INTO Rooms
-    (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password)
+    (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password, username)
     OUTPUT INSERTED.*
-    VALUES (@hotel_id, @room_number, @room_type, @price, @availability, @capacity_adults, @capacity_children, @password)
+    VALUES (@hotel_id, @room_number, @room_type, @price, @availability, @capacity_adults, @capacity_children, @password, @username)
   `);
 
 const insertedRoom = result.recordset[0];
@@ -77,14 +80,14 @@ async function getRooms(hotel_id) {
   return result.recordset;
 }
 async function loginRoom(roomData) {
-  const { room_number, password, fcm_token, device_id } = roomData;
+  const { password, fcmToken, deviceId, username } = roomData;
   const request = new sql.Request();
   const result = await request
-    .input("user_name", sql.NVarChar, user_name)
+    .input("user_name", sql.NVarChar, username)
     .input("password", sql.NVarChar, password)
-    .input("fcm_token", sql.NVarChar, fcm_token)
-    .input("device_id", sql.NVarChar, device_id)
-    .query("SELECT * FROM Rooms WHERE user_name=@user_name AND password=@password");
+    .input("fcm_token", sql.NVarChar, fcmToken)
+    .input("device_id", sql.NVarChar, deviceId)
+    .query("SELECT * FROM Rooms WHERE username=@user_name AND password=@password");
   return result.recordset[0];
 
 }
@@ -145,6 +148,51 @@ async function updateRoom(room_id, roomData) {
   return result.recordset[0];
 }
 
+// ================== UPDATE TOKEN ==================
+async function updateToken(room_id, token) {
+  const request = new sql.Request();
+  const result = await request
+    .input("room_id", sql.Int, room_id)
+    .input("jwt_token", sql.NVarChar, token)
+    .query(`
+      UPDATE Rooms 
+      SET jwt_token=@jwt_token 
+      WHERE room_id=@room_id;
+      SELECT room_id, jwt_token FROM Rooms WHERE room_id=@room_id;
+    `);
+  return result.recordset[0];
+}
+
+// ================== UPDATE FCM TOKEN ==================
+async function updateFcmToken(room_id, fcm_token) {
+  const request = new sql.Request();
+  const result = await request
+    .input("room_id", sql.Int, room_id)
+    .input("fcm_token", sql.NVarChar, fcm_token)
+    .query(`
+      UPDATE Rooms 
+      SET fcm_token=@fcm_token
+      WHERE room_id=@room_id;
+      SELECT room_id, fcm_token FROM Rooms WHERE room_id=@room_id;
+    `);
+  return result.recordset[0];
+}
+
+// ================== UPDATE DEVICE ID ==================
+async function updateDeviceId(room_id, device_id) {
+  const request = new sql.Request();
+  const result = await request
+    .input("room_id", sql.Int, room_id)
+    .input("device_id", sql.NVarChar, device_id)
+    .query(`
+      UPDATE Rooms 
+      SET device_id=@device_id
+      WHERE room_id=@room_id;
+      SELECT room_id, device_id FROM Rooms WHERE room_id=@room_id;
+    `);
+  return result.recordset[0];
+}
+
 // ================== DELETE ROOM ==================
 async function deleteRoom(room_id) {
   const request = new sql.Request();
@@ -161,4 +209,7 @@ module.exports = {
   updateRoom,
   deleteRoom,
   loginRoom,
+  updateToken,
+  updateFcmToken,
+  updateDeviceId
 };

@@ -1,4 +1,5 @@
 const express = require("express");
+const roomController = require("../controllers/roomController");
 const {
   createRoom,
   getRooms,
@@ -22,13 +23,22 @@ router.get("/", verifyToken, async (req, res) => {
 });
 
 // Get room by ID
-router.get("/:id", verifyToken, async (req, res ) => {
+// router.get("/:id", verifyToken, async (req, res ) => {
+//   try {
+//     const room = await getRoomById(req.params.id);
+//     if (!room || room.hotel_id !== req.hotel.hotel_id) {
+//       return res.status(404).json({ message: "Room not found" });
+//     }
+//     res.json(room);
+//   } catch (err) {
+//     res.status(500).json({ error: err.message });
+//   }
+// });
+
+// Get room dashboard
+router.get("/:id", verifyToken, async (req, res) => {
   try {
-    const room = await getRoomById(req.params.id);
-    if (!room || room.hotel_id !== req.hotel.hotel_id) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-    res.json(room);
+    await roomController.getRoomDashboard(req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -38,9 +48,16 @@ router.get("/:id", verifyToken, async (req, res ) => {
 router.post("/", verifyToken, async (req, res) => {
   try {
     // Override hotel_id with the one from token
-    req.body.hotel_id = req.hotel.hotel_id;
-    const room = await createRoom(req.body);
+    const room = await roomController.createRoom(req, res);
     res.status(201).json(room);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+router.post("/login", async (req, res) => {
+  try {
+    const room = await roomController.loginRoom(req, res);
+    res.status(200).json(room);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -49,7 +66,7 @@ router.post("/", verifyToken, async (req, res) => {
 // Update room
 router.put("/:id", verifyToken, async (req, res) => {
   try {
-    const room = await getRoomById(req.params.id);
+    const room = await roomController.getRoomById(req);
     if (!room || room.hotel_id !== req.hotel.hotel_id) {
       return res.status(404).json({ message: "Room not found" });
     }

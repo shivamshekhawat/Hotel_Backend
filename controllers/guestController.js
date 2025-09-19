@@ -34,8 +34,9 @@ const createGuest = async (req, res, next) => {
 
 const getGuests = async (req, res, next) => {
   try {
-    const guests = await guestModel.getAllGuests();
-    res.json(guests);
+    const guest = await guestModel.getGuestById(req.params.hotel_id);
+    if (!guest) return res.status(404).json({ message: "Guest not found" });
+    res.json(guest);
   } catch (err) {
     next(err);
   }

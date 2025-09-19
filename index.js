@@ -1,4 +1,6 @@
 const express = require("express");
+const cors = require("cors");
+
 const { connectDB } = require("./db"); // DB connection file
 require("dotenv").config();
 
@@ -6,11 +8,14 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // ================== Middleware ==================
+
+app.use(cors());
 // Enable JSON body parsing
 app.use(express.json());
 
 // If you send URL-encoded data
 app.use(express.urlencoded({ extended: true }));
+
 // ================== Connect to Database ==================
 connectDB();
 

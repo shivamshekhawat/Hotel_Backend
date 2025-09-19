@@ -44,7 +44,7 @@ async function findHotelByUsername(UserName) {
   const result = await request
     .input("UserName", sql.NVarChar, UserName)
     .query("SELECT * FROM Hotels WHERE username=@UserName");
-  return result.recordset[0];
+  return result;
 }
 
 // ✅ Create hotel with hashed password
@@ -61,6 +61,9 @@ async function updateToken(hotel_id, token) {
 // ✅ Get all hotels (exclude password)
 async function getAllHotels() {
   const request = new sql.Request();
+
+   
+
   const result = await request.query(`
     SELECT hotel_id, name, logo_url, established_year, address, service_care_no, city, country, postal_code, username, access_token
     FROM Hotels

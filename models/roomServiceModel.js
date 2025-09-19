@@ -9,14 +9,14 @@ async function createRoomService(data) {
   }
 
   // 🔎 Check if a request already exists for this reservation_id
-  const checkRequest = new sql.Request();
-  const existing = await checkRequest
-    .input("reservation_id", sql.Int, reservation_id)
-    .query(`SELECT * FROM RoomServices WHERE reservation_id = @reservation_id`);
+  // const checkRequest = new sql.Request();
+  // const existing = await checkRequest
+  //   .input("reservation_id", sql.Int, reservation_id)
+  //   .query(`SELECT * FROM RoomServices WHERE reservation_id = @reservation_id`);
 
-  if (existing.recordset.length > 0) {
-    throw new Error("Room service request for this reservation already exists");
-  }
+  // if (existing.recordset.length > 0) {
+  //   throw new Error("Room service request for this reservation already exists");
+  // }
 
   // 🚀 Insert new request (use a fresh request object)
   const insertRequest = new sql.Request();
@@ -35,9 +35,11 @@ async function createRoomService(data) {
 }
 
 // ✅ Get all room services
-async function getAllRoomServices() {
+async function getAllRoomServices(reservation_id) {
   const request = new sql.Request();
-  const result = await request.query("SELECT * FROM RoomServices");
+  const result = await request
+  .input("reservation_id", sql.Int, reservation_id)
+  .query("SELECT * FROM RoomServices where reservation_id = @reservation_id");
   return result.recordset;
 }
 

@@ -24,11 +24,11 @@ async function createReservation(data) {
     .query(`
       SELECT * 
       FROM Reservations 
-      WHERE guest_id = @guest_id AND room_id = @room_id
+      WHERE (guest_id = @guest_id OR room_id = @room_id) AND is_checked_in = 1
     `);
 
   if (existing.recordset.length > 0) {
-    throw new Error("Reservation already exists for this guest and room");
+    throw new Error("Reservation already exists for this guest Or room");
   }
 
   // Insert new reservation
@@ -101,6 +101,17 @@ async function updateReservation(reservation_id, data) {
 }
 
 /**
+ * Get a reservation by room_id
+ */
+async function getReservationByRoomId(room_id) {
+  const request = new sql.Request();
+  const result = await request
+    .input("room_id", sql.Int, room_id)
+    .query("SELECT * FROM Reservations WHERE room_id = @room_id AND is_checked_in = 1");
+  return result.recordset[0];
+}
+
+/**
  * Delete a reservation
  */
 async function deleteReservation(reservation_id) {
@@ -114,6 +125,7 @@ async function deleteReservation(reservation_id) {
 
 module.exports = {
   createReservation,
+  getReservationByRoomId,
   getAllReservations,
   getReservationById,
   updateReservation,

@@ -44,7 +44,7 @@ async function createGuest(guestData) {
 // Get all guests
 async function getAllGuests() {
   const request = new sql.Request();
-  const result = await request.query(`SELECT * FROM Guests`);
+  const result = await request.query(`SELECT * FROM Guests WHERE hotel_id=@hotel_id`);
   return result.recordset;
 }
 

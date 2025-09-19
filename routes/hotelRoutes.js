@@ -12,6 +12,6 @@ router.post(
   hotelController.createHotel
 );
 // GET /api/hotels
-router.get("/", hotelController.getHotels);
+router.get("/", verifyToken, hotelController.getHotels);
 
 module.exports = router;

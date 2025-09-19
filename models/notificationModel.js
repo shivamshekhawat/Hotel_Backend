@@ -102,6 +102,14 @@ async function updateNotification(notification_id, data) {
   return getNotificationById(notification_id);
 }
 
+// Get notifications by room_id
+async function getNotificationsByRoomId(room_id) {
+  const request = new sql.Request();
+  const result = await request
+    .input("room_id", sql.Int, room_id) 
+    .query("SELECT * FROM Notifications WHERE room_id=@room_id ORDER BY created_time DESC");
+  return result.recordset;
+}
 // Delete notification
 async function deleteNotification(notification_id) {
   const request = new sql.Request();
@@ -114,6 +122,7 @@ module.exports = {
   createNotification,
   getAllNotifications,
   getNotificationById,
+  getNotificationsByRoomId,
   updateNotification,
   deleteNotification,
 };
