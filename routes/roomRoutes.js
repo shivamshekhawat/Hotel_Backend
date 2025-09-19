@@ -47,17 +47,23 @@ router.get("/:id", verifyToken, async (req, res) => {
 // Create room
 router.post("/", verifyToken, async (req, res) => {
   try {
-    // Override hotel_id with the one from token
-    const room = await roomController.createRoom(req, res);
-    res.status(201).json(room);
+    await roomController.createRoom(req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 router.post("/login", async (req, res) => {
   try {
-    const room = await roomController.loginRoom(req, res);
-    res.status(200).json(room);
+    await roomController.loginRoom(req, res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Room action API
+router.post("/action", async (req, res) => {
+  try {
+    await roomController.roomAction(req, res);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

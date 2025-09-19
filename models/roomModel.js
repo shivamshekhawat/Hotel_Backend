@@ -80,13 +80,12 @@ async function getRooms(hotel_id) {
   return result.recordset;
 }
 async function loginRoom(roomData) {
-  const { password, fcmToken, deviceId, username } = roomData;
+  const { password, userId } = roomData;
   const request = new sql.Request();
+  console.log(userId, password);
   const result = await request
-    .input("user_name", sql.NVarChar, username)
+    .input("user_name", sql.NVarChar, userId)
     .input("password", sql.NVarChar, password)
-    .input("fcm_token", sql.NVarChar, fcmToken)
-    .input("device_id", sql.NVarChar, deviceId)
     .query("SELECT * FROM Rooms WHERE username=@user_name AND password=@password");
   return result.recordset[0];
 

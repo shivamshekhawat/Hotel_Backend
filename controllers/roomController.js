@@ -121,8 +121,11 @@ exports.getRoomDashboard = async (req, res) => {
     // Get reservation information
     const reservation = await reservationModel.getReservationByRoomId(id);
 
-    const guest = await guestModel.getGuestById(reservation.guest_id);
-    
+    const guest = null;
+
+    if (reservation) {
+     guest = await guestModel.getGuestById(reservation.guest_id);
+    }
     // Get room controls
     const controls = await roomControlModel.getRoomControlByRoomId(id);
     
@@ -252,3 +255,73 @@ function getContactInfo(hotel) {
     phoneNumber: hotel?.service_care_no || "123-456-7890"
   };
 }
+
+// ================== ROOM ACTION API ==================
+exports.roomAction = async (req, res) => {
+  try {
+    const { isCheckin, roomId, isDndOn, lightningControl } = req.body;
+    
+    // Validate required fields
+    if (!roomId) {
+      return res.status(400).json({
+        message: "Room ID is required",
+        status: 0,
+        response: null
+      });
+    }
+
+    // Get room details to verify it exists
+    const room = await RoomModel.getRoomById(roomId);
+    if (!room) {
+      return res.status(404).json({
+        message: "Room not found",
+        status: 0,
+        response: null
+      });
+    }
+
+    // Update room controls if provided
+    if (lightningControl) {
+      await roomControlModel.updateRoomControl(roomId, {
+        master_light: lightningControl.masterLight,
+        reading_light: lightningControl.readingLight,
+        master_curtain: lightningControl.masterCurtain,
+        master_window: lightningControl.masterWindow,
+        light_mode: lightningControl.lightMode
+      });
+    }
+
+    // Update temperature if provided
+    if (lightningControl?.temperature) {
+      await roomTemperatureModel.updateRoomTemperatureByRoomId(roomId, {
+        temperature: lightningControl.temperature.setTemp
+      });
+    }
+
+    // Update DND status if provided
+    if (isDndOn !== undefined) {
+      await doNotDisturbModel.updateDND(roomId, { is_active: isDndOn });
+    }
+
+    // Update check-in status if provided
+    if (isCheckin !== undefined) {
+      const {reservation_id} = await reservationModel.getReservationByRoomId(roomId);
+      await reservationModel.updateReservation(reservation_id, { is_checked_in: isCheckin });
+      // This would typically update a reservation or guest status
+      // For now, we'll just log it
+      console.log(`Room ${roomId} check-in status: ${isCheckin}`);
+    }
+
+    // Now call the dashboard API controller with the updated room ID
+    req.params.id = roomId;
+    await exports.getRoomDashboard(req, res);
+
+  } catch (error) {
+    console.error("Room action API error:", error);
+    res.status(500).json({
+      message: "Internal server error",
+      status: 0,
+      response: null
+    });
+  }
+};
