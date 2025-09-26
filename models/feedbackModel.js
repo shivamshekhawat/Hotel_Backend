@@ -54,14 +54,37 @@ async function createFeedback(data) {
 }
 
 // ✅ Get all feedback
+// ✅ Get all feedback with guest + room details
 async function getAllFeedback() {
   const request = new sql.Request();
-  const result = await request.query("SELECT * FROM Feedback ORDER BY feedback_id ASC");
+
+  const result = await request.query(`
+    SELECT 
+      f.feedback_id,
+      f.reservation_id,
+      f.comments,
+      f.rating,
+      f.submitted_time,
+      g.first_name + ' ' + g.last_name AS guest_name,
+      r.room_number
+    FROM Feedback f
+    INNER JOIN Reservations res ON f.reservation_id = res.reservation_id
+    INNER JOIN Guests g ON res.guest_id = g.guest_id
+    INNER JOIN Rooms r ON res.room_id = r.room_id
+    ORDER BY f.feedback_id ASC
+  `);
+
   return result.recordset.map((row) => ({
-    ...row,
+    feedback_id: row.feedback_id,
+    reservation_id: row.reservation_id,
+    comments: row.comments,
+    rating: row.rating,
     submitted_time: formatDate(new Date(row.submitted_time)),
+    guest_name: row.guest_name,
+    room_number: row.room_number,
   }));
 }
+
 
 // ✅ Get feedback by ID
 async function getFeedbackById(feedback_id) {

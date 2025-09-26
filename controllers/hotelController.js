@@ -125,44 +125,88 @@ const createHotel = async (req, res, next) => {
 // Fetch All Hotels Controller
  
 const getHotels = async (req, res, next) => {
+    try {
+        const authHeader = req.headers.authorization;
+        
+        // Check if authorization header exists and is in the correct format
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: "Unauthorized - No token provided" });
+        }
 
-    const authHeader = req.headers.authorization;
-    let adminId = null;
-    let setUsername = null;
-    
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-      console.log(`Extracted token: ${token}`);
-      try {
-        const decoded = jwt.decode(token);
-        if (decoded && decoded.role === "admin") {
-          adminId = decoded.userId;
-          if(!adminId) {
-            return res.status(400).json({ error: "Invalid Token" });
-          }
-          else{
-            console.log(`Extracted admin ID: ${adminId}`);
-            const { username } = await adminModel.getAdminById(adminId);
-            console.log('username', username);
-            setUsername = await username;
-          }
+        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        console.log(`Extracted token: ${token}`);
+        
+        try {
+            // Verify the token
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+            
+            // Check if user has admin role
+            if (!decoded || decoded.role !== "admin") {
+                return res.status(403).json({ error: "Forbidden - Admin access required" });
+            }
+            
+            // Get all hotels
+            const hotels = await hotelModel.getAllHotels();
+            
+            if (!hotels || hotels.length === 0) {
+                return res.status(404).json({ message: "No hotels found" });
+            }
+            
+            return res.status(200).json(hotels);
+            
+        } catch (err) {
+            console.error('Token verification failed:', err);
+            if (err.name === 'JsonWebTokenError') {
+                return res.status(401).json({ error: "Invalid token" });
+            } else if (err.name === 'TokenExpiredError') {
+                return res.status(401).json({ error: "Token expired" });
+            }
+            throw err; // Let the error handler catch other errors
         }
-        else{
-          return res.status(400).json({ error: "Invalid Token" });
-        }
-    
-    const result = await hotelModel.findHotelByUsername(setUsername);
-  
-    res.json(result.recordset);
-  } catch (err) {
-    next(err); // pass to global error handler
-  }
-}
-else{
-  return res.status(400).json({ error: "Invalid Token" });
-}
+    } catch (err) {
+        console.error('Error in getHotels:', err);
+        next(err); // pass to global error handler
+    }
 };
+// Dashboard API
+const getDashboard = async (req, res, next) => {
+  const { hotelId } = req.params;
 
+  // Validate and convert hotelId to integer
+  const hotelIdNum = parseInt(hotelId, 10);
+  if (isNaN(hotelIdNum) || hotelIdNum <= 0) {
+    return res.status(400).json({
+      error: "Invalid hotelId parameter. Must be a positive integer."
+    });
+  }
+
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No token provided" });
+  }
+
+  const token = authHeader.substring(7);
+  try {
+    const decoded = jwt.decode(token);
+    if (!decoded || decoded.role !== "admin") {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+  } catch (err) {
+    return res.status(401).json({ error: "Failed to decode token" });
+  }
+
+  try {
+    const data = await hotelModel.getDashboardData(hotelIdNum);
+    if (!data) {
+      return res.status(404).json({ message: "Hotel not found" });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error("Dashboard error:", err);
+    res.status(500).json({ message: "Internal server error", details: err.message });
+  }
+};
 
 // Export
 
@@ -170,5 +214,7 @@ module.exports = {
   validateHotel,
   checkValidation,
   createHotel,
+  getDashboard,
+  
   getHotels
 };

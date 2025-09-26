@@ -19,6 +19,11 @@ function verifyToken(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
 
     // Attach decoded payload to request
+    console.log("Decoded token:", decoded);
+
+    if ( decoded.role !== 'admin' && !decoded.hotel_id ) {
+      return res.status(401).json({ message: "Invalid token: hotel_id missing" });
+    }
     req.hotel = decoded; // example: req.hotel.hotel_id
 
     // Check if token has been used before
@@ -37,4 +42,32 @@ function verifyToken(req, res, next) {
   }
 }
 
-module.exports = { verifyToken };
+/**
+ * Middleware: Verify JWT token for Admin
+ */
+function verifyAdminToken(req, res, next) {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1]; // "Bearer <token>"
+
+  if (!token) {
+    return res.status(403).json({ message: "Token required" });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    // Check for admin role
+    if (decoded.role !== 'admin') {
+      return res.status(403).json({ message: "Forbidden: Admin access required" });
+    }
+
+    // Attach decoded payload to request
+    req.admin = decoded; // example: req.admin.userId
+
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid or expired token" });
+  }
+}
+
+module.exports = { verifyToken, verifyAdminToken };

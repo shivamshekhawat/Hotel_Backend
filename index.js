@@ -9,7 +9,20 @@ const port = process.env.PORT || 5000;
 
 // ================== Middleware ==================
 
-app.use(cors());
+app.use(cors({
+  origin: "*", // your frontend
+  credentials: true,               // allow cookies/Authorization headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // include OPTIONS
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'ngrok-skip-browser-warning' // allow ngrok custom header
+  ]
+}));
+
 // Enable JSON body parsing
 app.use(express.json());
 
@@ -28,12 +41,17 @@ app.use("/api/hotels", hotelRoutes);
 
 const roomRoutes = require("./routes/roomRoutes");
 app.use("/api/rooms", roomRoutes);
+app.use("/api/dashboard", hotelRoutes); // Dashboard route
 
 const guestRoutes = require("./routes/guestRoutes");
 app.use("/api/guests", guestRoutes);
 
 const reservationRoutes = require("./routes/reservationRoutes");
 app.use("/api/reservations", reservationRoutes);
+
+// Staff management routes
+const staffRoutes = require('./routes/staffRoutes');
+app.use('/api', staffRoutes);
 
 const roomServiceRoutes = require("./routes/roomServiceRoutes");
 app.use("/api/roomservices", roomServiceRoutes);
@@ -48,7 +66,7 @@ const roomTemperatureRoutes = require("./routes/roomTemperatureRoutes");
 app.use("/api/roomtemperatures", roomTemperatureRoutes);
 
 const dndRoutes = require("./routes/doNotDisturbRoutes");
-app.use("/api/dnd", dndRoutes);
+app.use("/api/do-not-disturb", dndRoutes);
 
 const feedbackRoutes = require("./routes/feedbackRoutes");
 app.use("/api/feedback", feedbackRoutes);
@@ -59,7 +77,7 @@ const notificationRoutes = require("./routes/notificationRoutes");
 app.use("/api/notifications", notificationRoutes);
 
 const adminRoutes = require("./routes/adminRoutes");
-app.use("/api/admins", adminRoutes);
+app.use("/api/admin", adminRoutes);
 
 // ================== Start Weather Scheduler ==================
 const { startWeatherScheduler } = require("./controllers/roomController");

@@ -42,6 +42,7 @@ const createFeedback = async (req, res) => {
 
 
 // Get all feedbacks
+// Get all feedbacks
 const getAllFeedback = async (req, res) => {
   try {
     const feedbacks = await feedbackModel.getAllFeedback();
@@ -58,6 +59,7 @@ const getAllFeedback = async (req, res) => {
     });
   }
 };
+
 
 // Get feedback by ID
 const getFeedback = async (req, res) => {

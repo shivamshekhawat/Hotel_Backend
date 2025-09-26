@@ -1,100 +1,38 @@
 const express = require("express");
 const roomController = require("../controllers/roomController");
-const {
-  createRoom,
-  getRooms,
-  getRoomById,
-  updateRoom,
-  deleteRoom,
-} = require("../models/roomModel");
-
 const { verifyToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-// Get all rooms for this hotel
-router.get("/", verifyToken, async (req, res) => {
-  try {
-    const rooms = await getRooms(req.hotel.hotel_id); // pass hotel_id from token
-    res.json(rooms);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Room login (no token required)
+router.post("/login", roomController.loginRoom);
 
-// Get room by ID
-// router.get("/:id", verifyToken, async (req, res ) => {
-//   try {
-//     const room = await getRoomById(req.params.id);
-//     if (!room || room.hotel_id !== req.hotel.hotel_id) {
-//       return res.status(404).json({ message: "Room not found" });
-//     }
-//     res.json(room);
-//   } catch (err) {
-//     res.status(500).json({ error: err.message });
-//   }
-// });
+// Room dashboard - requires room ID
+router.get("/dashboard/:id", roomController.getRoomDashboard);
 
-// Get room dashboard
-router.get("/:id", verifyToken, async (req, res) => {
-  try {
-    await roomController.getRoomDashboard(req, res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Room action
+router.post("/action", roomController.roomAction);
 
-// Create room
-router.post("/", verifyToken, async (req, res) => {
-  try {
-    await roomController.createRoom(req, res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-router.post("/login", async (req, res) => {
-  try {
-    await roomController.loginRoom(req, res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Get all rooms for a specific hotel
+// You can use either:
 
-// Room action API
-router.post("/action", async (req, res) => {
-  try {
-    await roomController.roomAction(req, res);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+router.get("/:hotelId", roomController.getRoomsByHotel);
 
-// Update room
-router.put("/:id", verifyToken, async (req, res) => {
-  try {
-    const room = await roomController.getRoomById(req);
-    if (!room || room.hotel_id !== req.hotel.hotel_id) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-    const updated = await updateRoom(req.params.id, req.body);
-    res.json(updated);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Get a single room by ID
+// Example: /api/rooms/101  (101 is room_id)
+router.get("/room/:id", roomController.getRoomById);
 
-// Delete room
-router.delete("/:id", verifyToken, async (req, res) => {
-  try {
-    const room = await getRoomById(req.params.id);
-    if (!room || room.hotel_id !== req.hotel.hotel_id) {
-      return res.status(404).json({ message: "Room not found" });
-    }
-    await deleteRoom(req.params.id);
-    res.json({ message: "Room deleted" });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
+// Create a new room (requires admin token)
+router.post("/", verifyToken, roomController.createRoom);
+
+// Update a room (requires admin token)
+router.put("/:id", verifyToken, roomController.updateRoom);
+
+// Delete a room (requires admin token)
+router.delete("/:id", verifyToken, roomController.deleteRoom);
+
+router.post("/:roomNumber/greeting", roomController.updateRoomGreeting);
+router.get("/:roomNumber/greeting", roomController.getRoomGreeting);
+
 
 module.exports = router;

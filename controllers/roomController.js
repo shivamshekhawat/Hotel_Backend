@@ -49,15 +49,57 @@ exports.loginRoom = async (req, res) => {
 };
 
 // ================== GET ROOMS BY HOTEL ==================
+
 exports.getRoomsByHotel = async (req, res) => {
   try {
-    const { hotel_id } = req.query;
-    if (!hotel_id) return res.status(400).json({ error: "hotel_id is required" });
+    const hotel_id = req.params.hotelId;
+    
+    // Validate hotel_id exists and is a valid number
+    if (!hotel_id) {
+      console.error('Missing hotel_id parameter');
+      return res.status(400).json({ 
+        status: 0,
+        message: "Hotel ID is required in the URL",
+        response: null
+      });
+    }
 
-    const rooms = await RoomModel.getRooms(hotel_id);
-    res.json(rooms);
+    // Convert to number and validate
+    const hotelIdNum = parseInt(hotel_id, 10);
+    if (isNaN(hotelIdNum) || hotelIdNum <= 0) {
+      console.error(`Invalid hotel_id: ${hotel_id}`);
+      return res.status(400).json({
+        status: 0,
+        message: "Invalid Hotel ID. Must be a positive number",
+        response: null
+      });
+    }
+
+    console.log(`[RoomController] Fetching rooms for hotel_id: ${hotelIdNum}`);
+    const rooms = await RoomModel.getRooms(hotelIdNum);
+    
+    if (!rooms || rooms.length === 0) {
+      console.log(`[RoomController] No rooms found for hotel_id: ${hotelIdNum}`);
+      return res.status(200).json({
+        status: 1,
+        message: "No rooms found for the specified hotel",
+        response: []
+      });
+    }
+
+    console.log(`[RoomController] Found ${rooms.length} rooms for hotel_id: ${hotelIdNum}`);
+    res.status(200).json({
+      status: 1,
+      message: "Rooms retrieved successfully",
+      response: rooms
+    });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    console.error('[RoomController] Error in getRoomsByHotel:', error);
+    res.status(500).json({ 
+      status: 0,
+      message: "Internal server error",
+      error: error.message 
+    });
   }
 };
 
@@ -99,17 +141,80 @@ exports.deleteRoom = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+exports.updateRoomGreeting = async (req, res) => {
+  try {
+    const { roomNumber } = req.params;
+    const { language, message } = req.body;
 
+    if (!language || !message) {
+      return res.status(400).json({ status: 0, message: "Language and message are required" });
+    }
+
+    const result = await RoomModel.updateGreeting(roomNumber, language, message);
+
+    res.status(200).json({
+      status: 1,
+      message: "Greeting updated successfully",
+      roomNumber: result.roomNumber,
+      language: result.language
+    });
+  } catch (error) {
+    console.error("Error updating room greeting:", error);
+    res.status(500).json({ status: 0, message: error.message });
+  }
+};
+
+// ================== GET ROOM GREETING ==================
+exports.getRoomGreeting = async (req, res) => {
+  try {
+    const { roomNumber } = req.params;
+    const language = req.query.language || "en";
+
+    const result = await RoomModel.getGreeting(roomNumber, language);
+
+    res.status(200).json({
+      status: 1,
+      roomNumber: result.roomNumber,
+      message: result.message
+    });
+  } catch (error) {
+    console.error("Error fetching room greeting:", error);
+    res.status(500).json({ status: 0, message: error.message });
+  }
+};
 // ================== DASHBOARD API ==================
 exports.getRoomDashboard = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log(`[Dashboard] Fetching dashboard for room ID: ${id}`);
+    
+    if (!id) {
+      console.error('[Dashboard] Error: No room ID provided in request');
+      return res.status(400).json({
+        message: 'Room ID is required',
+        status: 0,
+        response: null
+      });
+    }
     
     // Get room details
+    console.log('[Dashboard] Fetching room details...');
     const room = await RoomModel.getRoomById(id);
+    console.log('[Dashboard] Room data from DB:', room ? 'Found' : 'Not found');
+    
     if (!room) {
+      console.error(`[Dashboard] Room with ID ${id} not found in database`);
       return res.status(404).json({
-        message: "Room not found",
+        message: `Room with ID ${id} not found`,
+        status: 0,
+        response: null
+      });
+    }
+    
+    if (!room) {
+      console.log(`[Dashboard] Room with ID ${id} not found`);
+      return res.status(404).json({
+        message: `Room with ID ${id} not found`,
         status: 0,
         response: null
       });
@@ -146,11 +251,19 @@ exports.getRoomDashboard = async (req, res) => {
     
     // Get contact information
     const contact = getContactInfo(hotel);
+    // Generate dynamic greeting based on guest and hotel info
+    let greetingMessage = "";
+    if (guest?.name) {
+      greetingMessage = `Welcome ${guest.name} to ${hotel?.name || "our hotel"}`;
+    } else {
+      greetingMessage = `Welcome to ${hotel?.name || "our hotel"}`;
+    }
     
     // Construct dashboard response
     const dashboardResponse = {
       roomId: parseInt(id),
       roomNo: room.room_number,
+      greeting: greetingMessage,
       hotel: {
         hotelId: hotel?.hotel_id || 0,
         name: hotel?.name || "",
@@ -205,6 +318,7 @@ exports.getRoomDashboard = async (req, res) => {
       message: "Dashboard data retrieved successfully",
       status: 1,
       response: dashboardResponse
+    
     });
 
   } catch (error) {

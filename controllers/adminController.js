@@ -1,4 +1,5 @@
 const adminModel = require("../models/adminModel");
+const hotelModel = require("../models/hotelModel");
 const bcrypt = require("bcryptjs");
 const { generateToken } = require("../configuration/tokenGenerator");
 
@@ -130,7 +131,7 @@ const adminLogin = async (req, res) => {
     res.json({
       message: "Login successful",
       admin: adminData,
-      // token,
+      token,
       session_id: session_id || null,
     });
 
@@ -159,28 +160,74 @@ const getAllAdmins = async (req, res) => {
 const updateAdmin = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const adminId = parseInt(id, 10);
+    
+    // Check if adminId is a valid number
+    if (isNaN(adminId)) {
+      return res.status(400).json({ error: "Invalid admin ID" });
+    }
 
-    const existingAdmin = await adminModel.getAdminById(id);
-    if (!existingAdmin) return res.status(404).json({ error: "Admin not found" });
+    const { firstName, lastName, email, phone } = req.body;
 
-    if (updateData.email && !isValidEmail(updateData.email)) return res.status(400).json({ error: "Invalid email format" });
-    if (updateData.mobile_number && !isValidMobile(updateData.mobile_number)) return res.status(400).json({ error: "Invalid mobile number" });
+    // Validate that all required fields are provided
+    if (!firstName || !lastName || !email || !phone) {
+      return res.status(400).json({ 
+        error: "All fields are required: firstName, lastName, email, phone" 
+      });
+    }
 
-    if (updateData.password) updateData.password = await bcrypt.hash(updateData.password, 10);
+    // Validate field formats
+    if (!isValidName(firstName)) {
+      return res.status(400).json({ error: "First name must be 2-50 characters" });
+    }
+    if (!isValidName(lastName)) {
+      return res.status(400).json({ error: "Last name must be 2-50 characters" });
+    }
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
+    if (!isValidMobile(phone)) {
+      return res.status(400).json({ error: "Phone number must be 10-15 digits" });
+    }
 
-    await adminModel.updateAdmin(id, updateData);
-    res.json({ message: "Admin updated successfully", admin_id: id });
+    // Check if admin exists
+    const existingAdmin = await adminModel.getAdminById(adminId);
+    if (!existingAdmin) {
+      return res.status(404).json({ error: "Admin not found" });
+    }
 
+    // Update admin with mapped field names
+    const updateData = {
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      email: email.toLowerCase().trim(),
+      mobile_number: phone.trim()
+    };
+
+    await adminModel.updateAdmin(adminId, updateData);
+    
+    // Get updated admin details
+    const updatedAdmin = await adminModel.getAdminById(adminId);
+    
+    res.json({ 
+      message: "Admin updated successfully",
+      admin: {
+        id: updatedAdmin.admin_id,
+        firstName: updatedAdmin.first_name,
+        lastName: updatedAdmin.last_name,
+        email: updatedAdmin.email,
+        phone: updatedAdmin.mobile_number
+      }
+    });
   } catch (err) {
-    // console.error("Update admin error:", err);
+    console.error("Update admin error:", err);
     
     // Handle specific error cases
     if (err.message === "Email already exists") {
       return res.status(400).json({ error: "Email already exists" });
     }
     if (err.message === "Mobile number already exists") {
-      return res.status(400).json({ error: "Mobile number already exists" });
+      return res.status(400).json({ error: "Phone number already exists" });
     }
     
     res.status(500).json({ error: "Internal server error" });
@@ -202,10 +249,37 @@ const deleteAdmin = async (req, res) => {
   }
 };
 
+// ---------------- Update Hotel Password ----------------
+const updateHotelPassword = async (req, res) => {
+  try {
+    const { hotelId } = req.params;
+    const { newPassword } = req.body;
+
+    // Validate input
+    if (!newPassword || newPassword.length < 6) {
+      return res.status(400).json({ error: "Password must be at least 6 characters" });
+    }
+
+    const hotel = await hotelModel.getHotelById(hotelId);
+    if (!hotel) {
+      return res.status(404).json({ error: "Hotel not found" });
+    }
+
+    await hotelModel.updatePassword(hotelId, newPassword);
+
+    res.json({ message: "Hotel password updated successfully", hotel_id: hotelId });
+
+  } catch (err) {
+    console.error("Update hotel password error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 module.exports = {
   createAdmin,
   adminLogin,
   getAllAdmins,
   updateAdmin,
-  deleteAdmin
+  deleteAdmin,
+  updateHotelPassword
 };

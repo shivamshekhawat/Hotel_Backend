@@ -11,7 +11,13 @@ router.post(
   hotelController.checkValidation,
   hotelController.createHotel
 );
-// GET /api/hotels
+
+// GET all hotels
 router.get("/", verifyToken, hotelController.getHotels);
+
+// GET dashboard for a specific hotel
+
+router.get("/dashboard/:hotelId", verifyToken, hotelController.getDashboard);
+
 
 module.exports = router;

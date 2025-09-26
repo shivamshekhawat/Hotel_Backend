@@ -9,12 +9,11 @@ async function createRoom(roomData) {
   const {
     hotel_id,
     room_number,
-    room_type,
-    price,
-    availability,
+  
+  
     capacity_adults,
     capacity_children,
-    username,
+   
     password,
   } = roomData;
 
@@ -36,18 +35,16 @@ async function createRoom(roomData) {
 const result = await new sql.Request()
   .input("hotel_id", sql.Int, hotel_id)
   .input("room_number", sql.NVarChar, room_number)
-  .input("username", sql.NVarChar, username)
-  .input("room_type", sql.NVarChar, room_type || "Standard")
-  .input("price", sql.Float, price || 0)
-  .input("availability", sql.Bit, availability ?? true)
+
+
   .input("capacity_adults", sql.Int, capacity_adults || 2)
   .input("capacity_children", sql.Int, capacity_children || 0)
   .input("password", sql.NVarChar, password)
   .query(`
     INSERT INTO Rooms
-    (hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children, password, username)
+    (hotel_id, room_number, capacity_adults, capacity_children, password)
     OUTPUT INSERTED.*
-    VALUES (@hotel_id, @room_number, @room_type, @price, @availability, @capacity_adults, @capacity_children, @password, @username)
+    VALUES (@hotel_id, @room_number, @capacity_adults, @capacity_children, @password)
   `);
 
 const insertedRoom = result.recordset[0];
@@ -73,10 +70,16 @@ delete insertedRoom.password;
 
 // ================== GET ALL ROOMS BY HOTEL ==================
 async function getRooms(hotel_id) {
+  // Validate hotel_id is a valid number
+  const hotelIdNum = parseInt(hotel_id, 10);
+  if (isNaN(hotelIdNum) || hotelIdNum <= 0) {
+    throw new Error('Invalid hotel_id. Must be a positive number');
+  }
+
   const request = new sql.Request();
   const result = await request
-    .input("hotel_id", sql.Int, hotel_id)
-    .query("SELECT room_id, hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children FROM Rooms WHERE hotel_id=@hotel_id");
+    .input("hotel_id", sql.Int, hotelIdNum)
+    .query("SELECT room_id, hotel_id, room_number, capacity_adults, capacity_children FROM Rooms WHERE hotel_id=@hotel_id");
   return result.recordset;
 }
 async function loginRoom(roomData) {
@@ -93,20 +96,75 @@ async function loginRoom(roomData) {
 
 // ================== GET ROOM BY ID ==================
 async function getRoomById(room_id) {
-  const request = new sql.Request();
-  const result = await request
-    .input("room_id", sql.Int, room_id)
-    .query("SELECT room_id, hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children FROM Rooms WHERE room_id=@room_id");
-  return result.recordset[0];
+  try {
+    console.log(`[RoomModel] Fetching room with ID: ${room_id}`);
+    const request = new sql.Request();
+    const result = await request
+      .input("room_id", sql.Int, room_id)
+      .query("SELECT room_id, hotel_id, room_number, capacity_adults, capacity_children FROM Rooms WHERE room_id = @room_id");
+    
+    console.log(`[RoomModel] Query result for room ${room_id}:`, result.recordset.length > 0 ? 'Found' : 'Not found');
+    
+    if (result.recordset.length === 0) {
+      return null;
+    }
+    
+    return result.recordset[0];
+  } catch (error) {
+    console.error(`[RoomModel] Error fetching room ${room_id}:`, error);
+    throw error; // Re-throw to be handled by the controller
+  }
+}
+// ================== GET ROOM BY NUMBER ==================
+async function getRoomByNumber(roomNumber) {
+  try {
+    const result = await sql.query`SELECT * FROM Rooms WHERE room_number = ${roomNumber}`;
+    console.log(`[RoomModel] Query result for room number ${roomNumber}:`, result.recordset.length > 0 ? 'Found' : 'Not found');
+    
+    if (result.recordset.length === 0) {
+      return null;
+    }
+    
+    return result.recordset[0];
+  } catch (error) {
+    console.error(`[RoomModel] Error fetching room number ${roomNumber}:`, error);
+    throw error; // Re-throw to be handled by the controller
+  }
 }
 
+// ================== UPDATE GREETING ==================
+async function updateGreeting(roomNumber, language, message) {
+  const room = await getRoomByNumber(roomNumber);
+  if (!room) throw { statusCode: 404, message: "Room not found" };
+
+  let greetings = room.greeting || {};
+  if (typeof greetings === "string") greetings = JSON.parse(greetings);
+
+  greetings[language] = message;
+
+  const updateReq = new sql.Request();
+  await updateReq
+    .input("greeting", sql.NVarChar, JSON.stringify(greetings))
+    .input("roomNumber", sql.NVarChar, roomNumber)
+    .query("UPDATE Rooms SET greeting=@greeting WHERE room_number=@roomNumber");
+
+  return { roomNumber, language, message };
+}
+
+// Get greeting for a room
+async function getGreeting(roomNumber, language = "en") {
+  const room = await getRoomByNumber(roomNumber);
+  if (!room) throw { statusCode: 404, message: "Room not found" };
+
+  let greetings = room.greeting || {};
+  if (typeof greetings === "string") greetings = JSON.parse(greetings);
+
+  return { roomNumber, message: greetings[language] || "" };
+}
 // ================== UPDATE ROOM ==================
 async function updateRoom(room_id, roomData) {
   const {
     room_number,
-    room_type,
-    price,
-    availability,
     capacity_adults,
     capacity_children,
     password,
@@ -125,23 +183,20 @@ async function updateRoom(room_id, roomData) {
   const result = await request
     .input("room_id", sql.Int, room_id)
     .input("room_number", sql.NVarChar, room_number)
-    .input("room_type", sql.NVarChar, room_type)
-    .input("price", sql.Float, price)
-    .input("availability", sql.Bit, availability)
+  
+
     .input("capacity_adults", sql.Int, capacity_adults)
     .input("capacity_children", sql.Int, capacity_children)
     .input("password", sql.NVarChar, hashedPassword)
     .query(`
       UPDATE Rooms
       SET room_number=@room_number,
-          room_type=@room_type,
-          price=@price,
-          availability=@availability,
+         
           capacity_adults=@capacity_adults,
           capacity_children=@capacity_children,
           password=@password
       WHERE room_id=@room_id;
-      SELECT room_id, hotel_id, room_number, room_type, price, availability, capacity_adults, capacity_children FROM Rooms WHERE room_id=@room_id;
+      SELECT room_id, hotel_id, room_number,capacity_adults, capacity_children FROM Rooms WHERE room_id=@room_id;
     `);
 
   return result.recordset[0];
@@ -205,9 +260,12 @@ module.exports = {
   createRoom,
   getRooms,
   getRoomById,
+  getRoomByNumber,
   updateRoom,
   deleteRoom,
   loginRoom,
+  updateGreeting,
+  getGreeting,
   updateToken,
   updateFcmToken,
   updateDeviceId

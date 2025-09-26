@@ -88,13 +88,13 @@ async function getAllAdmins() {
   return result.recordset;
 }
 
-// ✅ Get admin by ID
+// ✅ Get admin by ID (including password for internal use)
 async function getAdminById(adminId) {
   const request = new sql.Request();
   const result = await request
     .input("admin_id", sql.Int, adminId)
     .query(`
-      SELECT admin_id, first_name, last_name, email, mobile_number, token, role, session_id, username
+      SELECT admin_id, first_name, last_name, email, mobile_number, token, role, session_id, username, password
       FROM Admins
       WHERE admin_id=@admin_id
     `);
@@ -130,24 +130,63 @@ async function updateAdmin(adminId, adminData) {
     }
   }
 
+  // Build dynamic update query based on provided fields
+  let updateFields = [];
+  let inputs = {};
+  
+  if (first_name !== undefined) {
+    updateFields.push("first_name=@first_name");
+    inputs.first_name = first_name;
+  }
+  if (last_name !== undefined) {
+    updateFields.push("last_name=@last_name");
+    inputs.last_name = last_name;
+  }
+  if (email !== undefined) {
+    updateFields.push("email=@email");
+    inputs.email = email;
+  }
+  if (mobile_number !== undefined) {
+    updateFields.push("mobile_number=@mobile_number");
+    inputs.mobile_number = mobile_number;
+  }
+  if (token !== undefined) {
+    updateFields.push("token=@token");
+    inputs.token = token;
+  }
+  if (role !== undefined) {
+    updateFields.push("role=@role");
+    inputs.role = role;
+  }
+  if (session_id !== undefined) {
+    updateFields.push("session_id=@session_id");
+    inputs.session_id = (session_id && uuidValidate(session_id)) ? session_id : uuidv4();
+  }
+  if (password !== undefined) {
+    updateFields.push("password=@password");
+    inputs.password = password;
+  }
+
+  if (updateFields.length === 0) {
+    throw new Error("No fields to update");
+  }
+
+  updateFields.push("updated_at=GETDATE()");
+
   const request = new sql.Request();
-  return await request
-    .input("admin_id", sql.Int, adminId)
-    .input("first_name", sql.NVarChar, first_name)
-    .input("last_name", sql.NVarChar, last_name)
-    .input("email", sql.NVarChar, email)
-    .input("mobile_number", sql.NVarChar, mobile_number)
-    .input("token", sql.NVarChar, token)
-    .input("role", sql.NVarChar, role)
-    .input("session_id", sql.UniqueIdentifier, (session_id && uuidValidate(session_id)) ? session_id : uuidv4())
-    .input("password", sql.NVarChar, password)
-    .query(`
-      UPDATE Admins
-      SET first_name=@first_name, last_name=@last_name, email=@email,
-          mobile_number=@mobile_number, token=@token, role=@role,
-          session_id=@session_id, password=@password
-      WHERE admin_id=@admin_id
-    `);
+  request.input("admin_id", sql.Int, adminId);
+  
+  // Add inputs dynamically
+  Object.keys(inputs).forEach(key => {
+    if (key === 'session_id') {
+      request.input(key, sql.UniqueIdentifier, inputs[key]);
+    } else {
+      request.input(key, sql.NVarChar, inputs[key]);
+    }
+  });
+
+  const query = `UPDATE Admins SET ${updateFields.join(", ")} WHERE admin_id=@admin_id`;
+  return await request.query(query);
 }
 
 // ✅ Delete admin
