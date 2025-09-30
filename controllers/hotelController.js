@@ -85,31 +85,37 @@ const createHotel = async (req, res, next) => {
           }
           else{
             console.log(`Extracted admin ID: ${adminId}`);
-            const { username } = await adminModel.getAdminById(adminId);
-            req.body.access_token = await token;
-            console.log('req.body.UserName', username);
-            req.body.UserName = await username;
+            const admin = await adminModel.getAdminById(adminId);
+            if (!admin) {
+              return res.status(404).json({ error: "Admin not found" });
+            }
+            
+            // Check if admin already has a hotel
+            const hasHotel = await hotelModel.adminHasHotel(admin.username);
+            if (hasHotel) {
+              return res.status(400).json({ 
+                error: "Admin already has a hotel. Only one hotel per admin is allowed." 
+              });
+            }
+            
+            req.body.access_token = token;
+            console.log('req.body.UserName', admin.username);
+            req.body.UserName = admin.username;
           
             console.log('req.body.UserName', req.body.UserName);
           }
         } else {
-          console.log('Invelid Token');
+          console.log('Invalid Token');
+          return res.status(401).json({ error: "Invalid or expired token" });
         } 
       } catch (decodeError) {
         console.error('Error decoding token:', decodeError);
+        return res.status(401).json({ error: "Invalid token" });
       }
     } else {
       console.log('No Bearer token found in Authorization header');
+      return res.status(401).json({ error: "Authorization token required" });
     }
-
-    // Check if hotel username already exists
-    // const existingHotel = await hotelModel.findHotelByUsername(username);
-    // if (existingHotel) {
-    //   return res.status(400).json({ error: "Hotel with this username already exists" });
-    // }
-
-    // Hash password
-    // const hashedPassword = await bcrypt.hash(Password, 10);
 
     // Save hotel
     const result = await hotelModel.createHotel({ ...req.body });
@@ -117,6 +123,7 @@ const createHotel = async (req, res, next) => {
 
     res.status(201).json({ message: "Hotel created successfully", hotel: result.recordset[0]});
   } catch (err) {
+    console.error('Error in createHotel:', err);
     next(err); // pass to global error handler
   }
 };

@@ -1,18 +1,19 @@
-
 const sql=require('mssql');
 require("dotenv").config();
 
 const config={
-  server:process.env.MSSQL_HOST,
-  database:process.env.MSSQL_DB,
-  user:process.env.MSSQL_USER,
-  password:process.env.MSSQL_PASSWORD,
-  options:{
-    encrypt:false,
-    enableArithAbort:true
+  server: process.env.MSSQL_HOST,
+  database: process.env.MSSQL_DB,
+  user: process.env.MSSQL_USER,
+  password: process.env.MSSQL_PASSWORD,
+  options: {
+    encrypt: false,
+    enableArithAbort: true,
+    useUTC: true,  // Ensure all dates are treated as UTC
+    timezone: 'utc' // Explicitly set timezone to UTC
   },
   pool: { max: 10, min: 0, idleTimeoutMillis: 30000 },
-  port:parseInt(process.env.MSSQL_PORT)
+  port: parseInt(process.env.MSSQL_PORT)
 }
 
 async function connectDB() {

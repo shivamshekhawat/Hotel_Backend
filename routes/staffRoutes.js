@@ -6,10 +6,10 @@ const staffController = require('../controllers/staffController');
 router.post('/admin/login', staffController.adminLogin);
 
 // Protected routes (in a real app, add authentication middleware here)
-router.get('/staff', staffController.getAllStaff);
-router.post('/staff', staffController.createStaff);
-router.put('/staff/:id', staffController.updateStaff);
-router.delete('/staff/:id', staffController.deleteStaff);
-router.get('/staff/me', staffController.getMyProfile);
+router.get('/', staffController.getAllStaff);
+router.post('/', staffController.createStaff);
+router.put('/:id', staffController.updateStaff);
+router.delete('/:id', staffController.deleteStaff);
+router.get('/me', staffController.getMyProfile);
 
 module.exports = router;

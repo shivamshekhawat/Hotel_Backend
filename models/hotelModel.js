@@ -49,6 +49,15 @@ async function findHotelByUsername(UserName) {
   return result.recordset[0];
 }
 
+// ✅ Find hotel by email
+async function findHotelByEmail(email) {
+  const request = new sql.Request();
+  const result = await request
+    .input("email", sql.NVarChar, email)
+    .query("SELECT * FROM Hotels WHERE email=@email");
+  return result.recordset[0];
+}
+
 // ✅ Create hotel with hashed password
 
 
@@ -219,8 +228,19 @@ async function updatePassword(hotelId, newPassword) {
     `);
 }
 
+// Check if admin already has a hotel
+async function adminHasHotel(adminUsername) {
+  const request = new sql.Request();
+  const result = await request
+    .input('username', sql.NVarChar, adminUsername)
+    .query('SELECT COUNT(*) as hotelCount FROM Hotels WHERE username = @username');
+  
+  return result.recordset[0].hotelCount > 0;
+}
+
 module.exports = {
   createHotel,
+  findHotelByEmail,
   getAllHotels,
   getHotelById,
   getDashboardData,
@@ -228,5 +248,6 @@ module.exports = {
   deleteHotel,
   findHotelByUsername,
   updateToken,
-  updatePassword
+  updatePassword,
+  adminHasHotel
 };
