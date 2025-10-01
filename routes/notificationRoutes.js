@@ -1,11 +1,11 @@
 const express = require("express");
 const router = express.Router();
 const notificationController = require("../controllers/notificationController");
+const { verifyToken } = require("../middleware/authMiddleware");
 
 // Existing routes
 router.post("/", notificationController.createNotification);       // Create
-router.get("/", notificationController.getAllNotifications);       // Get all
-router.get("/:id", notificationController.getNotification);        // Get by ID
+router.get(["/", "/hotel/:hotelId"], verifyToken, notificationController.getAllNotifications);        // Get by ID
 router.put("/:id", notificationController.updateNotification);     // Update
 router.delete("/:id", notificationController.deleteNotification);  // Delete
 

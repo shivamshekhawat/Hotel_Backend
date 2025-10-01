@@ -61,10 +61,25 @@ async function createNotification(data) {
   return result.recordset[0];
 }
 
-// Get all notifications
-async function getAllNotifications() {
+// Get all notifications with optional hotel filtering
+// @param {number} [hotelId] - Optional hotel ID to filter notifications
+async function getAllNotifications(hotelId = null) {
   const request = new sql.Request();
-  const result = await request.query("SELECT * FROM Notifications");
+  
+  let query = `
+    SELECT n.*, r.room_number, r.hotel_id
+    FROM Notifications n
+    JOIN Rooms r ON n.room_id = r.room_id
+  `;
+  
+  if (hotelId) {
+    query += ' WHERE r.hotel_id = @hotelId';
+    request.input('hotelId', sql.Int, hotelId);
+  }
+  
+  query += ' ORDER BY n.created_time DESC';
+  
+  const result = await request.query(query);
 
   return result.recordset.map((row) => ({
     ...row,
@@ -158,9 +173,9 @@ async function deleteNotification(notification_id) {
     .query("DELETE FROM Notifications WHERE notification_id=@notification_id");
 }
 
-// Send notification to single or multiple targets
+// Send notification to single or multiple targets with hotel filtering
 async function sendNotification(data) {
-  const { message, target, targetId, priority = 'medium' } = data;
+  const { message, target, targetId, priority = 'medium', hotel_id } = data;
   
   // Validate required fields
   if (!message || !target) {
@@ -179,27 +194,156 @@ async function sendNotification(data) {
     throw new Error(`Invalid priority. Must be one of: ${validPriorities.join(', ')}`);
   }
 
+  // Validate hotel_id if provided
+  const parsedHotelId = hotel_id ? parseInt(hotel_id, 10) : null;
+  if (hotel_id !== undefined && isNaN(parsedHotelId)) {
+    throw new Error('hotel_id must be a valid number');
+  }
+
   let targetIds = [];
   
   try {
-    // Handle different target types
+    // Get all room IDs for the target with optional hotel filtering
     if (target === 'all') {
-      // Get all room IDs
-      const result = await new sql.Request()
-        .query('SELECT room_id FROM Rooms');
-      targetIds = result.recordset.map(row => row.room_id.toString());
-    } else if (target === 'multipleRooms') {
-      // Ensure targetId is an array
-      if (!Array.isArray(targetId)) {
-        throw new Error('targetId must be an array when target is multipleRooms');
+      const request = new sql.Request();
+      let query = 'SELECT room_id FROM Rooms';
+      
+      if (parsedHotelId !== null) {
+        query += ' WHERE hotel_id = @hotelId';
+        request.input('hotelId', sql.Int, parsedHotelId);
       }
-      targetIds = targetId.map(id => id.toString());
-    } else {
-      // For single target, convert to array
+      
+      const result = await request.query(query);
+      targetIds = result.recordset.map(r => r.room_id);
+    }
+    // Get room ID for a specific room
+    else if (target === 'room') {
       if (!targetId) {
-        throw new Error(`targetId is required for target type: ${target}`);
+        throw new Error('targetId is required for room target');
       }
-      targetIds = [targetId.toString()];
+      const roomId = parseInt(targetId);
+      if (isNaN(roomId)) {
+        throw new Error('Invalid room ID');
+      }
+      
+      // Check if room exists and belongs to the specified hotel
+      const request = new sql.Request();
+      let query = 'SELECT room_id FROM Rooms WHERE room_id = @roomId';
+      
+      if (parsedHotelId !== null) {
+        query += ' AND hotel_id = @hotelId';
+        request.input('hotelId', sql.Int, parsedHotelId);
+      }
+      
+      const result = await request
+        .input('roomId', sql.Int, roomId)
+        .query(query);
+        
+      if (result.recordset.length > 0) {
+        targetIds = [roomId];
+      } else if (parsedHotelId !== null) {
+        throw new Error(`Room ${roomId} not found in hotel ${parsedHotelId}`);
+      } else {
+        throw new Error(`Room ${roomId} not found`);
+      }
+    }
+    // Get room IDs for a specific floor
+    else if (target === 'floor') {
+      if (!targetId) {
+        throw new Error('targetId (floor number) is required for floor target');
+      }
+      
+      const request = new sql.Request();
+      let query = 'SELECT room_id FROM Rooms WHERE floor_number = @floorNumber';
+      
+      if (parsedHotelId !== null) {
+        query += ' AND hotel_id = @hotelId';
+        request.input('hotelId', sql.Int, parsedHotelId);
+      }
+      
+      const result = await request
+        .input('floorNumber', sql.Int, targetId)
+        .query(query);
+        
+      targetIds = result.recordset.map(r => r.room_id);
+    }
+    // Get room ID for a specific guest
+    else if (target === 'guest') {
+      if (!targetId) {
+        throw new Error('targetId (guest ID) is required for guest target');
+      }
+      
+      const guestId = parseInt(targetId);
+      if (isNaN(guestId)) {
+        throw new Error('Invalid guest ID');
+      }
+      
+      const request = new sql.Request();
+      let query = `
+        SELECT r.room_id 
+        FROM Reservations r
+        JOIN Rooms rm ON r.room_id = rm.room_id
+        WHERE r.guest_id = @guestId 
+        AND r.check_out_time > GETDATE()
+      `;
+      
+      if (parsedHotelId !== null) {
+        query += ' AND rm.hotel_id = @hotelId';
+        request.input('hotelId', sql.Int, parsedHotelId);
+      }
+      
+      query += ' ORDER BY r.check_in_time DESC';
+      
+      const result = await request
+        .input('guestId', sql.Int, guestId)
+        .query(query);
+        
+      if (result.recordset.length > 0) {
+        targetIds = [result.recordset[0].room_id];
+      } else if (parsedHotelId !== null) {
+        throw new Error(`No active reservation found for guest ${guestId} in hotel ${parsedHotelId}`);
+      } else {
+        throw new Error(`No active reservation found for guest ${guestId}`);
+      }
+    }
+    // Handle multiple rooms
+    else if (target === 'multipleRooms') {
+      if (!Array.isArray(targetId)) {
+        throw new Error('targetId must be an array for multipleRooms target');
+      }
+      
+      const roomIds = targetId.map(id => parseInt(id)).filter(id => !isNaN(id));
+      if (roomIds.length === 0) {
+        throw new Error('No valid room IDs provided');
+      }
+      
+      // If hotel_id is provided, filter the rooms by hotel
+      if (parsedHotelId !== null) {
+        const request = new sql.Request();
+        const result = await request
+          .input('hotelId', sql.Int, parsedHotelId)
+          .query(`
+            SELECT room_id 
+            FROM Rooms 
+            WHERE room_id IN (${roomIds.join(',')}) 
+            AND hotel_id = @hotelId
+          `);
+        targetIds = result.recordset.map(r => r.room_id);
+      } else {
+        targetIds = roomIds;
+      }
+    }
+
+    // If no target IDs were found, return early
+    if (targetIds.length === 0) {
+      return {
+        success: false,
+        message: 'No valid targets found for the notification',
+        sentCount: 0,
+        failedCount: 0,
+        failedTargets: [],
+        notifications: []
+      };
     }
 
     // Create notifications for each target
@@ -210,34 +354,14 @@ async function sendNotification(data) {
     for (const id of targetIds) {
       try {
         const notification = {
-          room_id: target === 'all' || target === 'room' || target === 'multipleRooms' ? parseInt(id) : null,
+          room_id: id,
           message,
           type: priority,
           created_time: now,
           is_read: 0
         };
-        
-        // Only process room notifications for now, as other types require additional columns
-        if (target !== 'room' && target !== 'all' && target !== 'multipleRooms') {
-          console.warn(`Skipping non-room target type: ${target}. Currently only room notifications are supported.`);
-          failedTargets.push(id);
-          continue;
-        }
 
-        // Check if room exists for room notifications
-        if (notification.room_id) {
-          const roomCheck = await new sql.Request()
-            .input("room_id", sql.Int, notification.room_id)
-            .query("SELECT room_id FROM Rooms WHERE room_id = @room_id");
-          
-          if (roomCheck.recordset.length === 0) {
-            console.warn(`Skipping non-existent room ID: ${notification.room_id}`);
-            failedTargets.push(notification.room_id);
-            continue; // Skip to next iteration
-          }
-        }
-
-        // Insert notification with only the columns that exist in the database
+        // Insert the notification
         const result = await new sql.Request()
           .input('room_id', sql.Int, notification.room_id)
           .input('message', sql.NVarChar, notification.message)

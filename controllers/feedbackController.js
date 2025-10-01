@@ -32,6 +32,7 @@ const createFeedback = async (req, res) => {
       response: feedback
     });
   } catch (err) {
+    console.error('Error in createFeedback:', err);
     res.status(500).json({
       message: "Internal server error",
       status: 0,
@@ -40,28 +41,42 @@ const createFeedback = async (req, res) => {
   }
 };
 
-
-// Get all feedbacks
-// Get all feedbacks
+// Get all feedbacks with optional hotel filtering
 const getAllFeedback = async (req, res) => {
   try {
-    const feedbacks = await feedbackModel.getAllFeedback();
-    res.json({
-      message: "Feedbacks retrieved successfully",
+    // Get hotel_id from query parameter or URL parameter
+    const hotelId = req.query.hotel_id || req.params.hotelId;
+    
+    // Convert to number if it exists
+    const parsedHotelId = hotelId ? parseInt(hotelId, 10) : null;
+    
+    // Validate hotel_id if provided
+    if (parsedHotelId && isNaN(parsedHotelId)) {
+      return res.status(400).json({
+        status: 0,
+        message: 'Invalid hotel_id parameter. Must be a number.',
+        response: []
+      });
+    }
+
+    // Get feedback with optional hotel filtering
+    const feedbacks = await feedbackModel.getAllFeedback(parsedHotelId);
+    
+    res.status(200).json({
       status: 1,
+      message: feedbacks.length > 0 ? "Feedback retrieved successfully" : "No feedback found",
       response: feedbacks
     });
-  } catch (err) {
+  } catch (error) {
+    console.error('Error in getAllFeedback:', error);
     res.status(500).json({
-      message: "Internal server error",
+      message: "Error retrieving feedback",
       status: 0,
-      response: null
+      response: null,
     });
   }
 };
 
-
-// Get feedback by ID
 const getFeedback = async (req, res) => {
   try {
     const feedback = await feedbackModel.getFeedbackById(req.params.id);

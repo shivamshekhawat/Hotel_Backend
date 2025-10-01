@@ -15,7 +15,8 @@ router.post("/action", roomController.roomAction);
 
 // Get all rooms or rooms by hotel
 // GET /api/rooms - gets all rooms
-// GET /api/rooms/91 - gets rooms for hotel with ID 91
+// GET /api/rooms?hotel_id=91 - gets rooms for hotel with ID 91 (query parameter)
+// GET /api/rooms/91 - gets rooms for hotel with ID 91 (URL parameter)
 router.get(["/", "/:hotelId"], roomController.getRoomsByHotel);
 
 // Get a single room by ID

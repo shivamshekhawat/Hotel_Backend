@@ -44,10 +44,17 @@ const result = await insertRequest
   // Return the inserted guest
   return result.recordset[0];
 }
-// Get all guests
-async function getAllGuests() {
+// Get all guests with optional hotel filtering
+async function getAllGuests(hotelId = null) {
   const request = new sql.Request();
-  const result = await request.query(`SELECT * FROM Guests`);
+  let query = 'SELECT * FROM Guests';
+  
+  if (hotelId) {
+    query += ' WHERE hotel_id = @hotelId';
+    request.input('hotelId', sql.Int, hotelId);
+  }
+  
+  const result = await request.query(query);
   return result.recordset;
 }
 
@@ -98,11 +105,12 @@ async function deleteGuest(guest_id) {
 
 // Get all guests with their room information
 // Handles cases with invalid guest_id and provides better error handling
-async function getGuestsWithRooms() {
+// @param {number} [hotelId] - Optional hotel ID to filter guests by hotel
+async function getGuestsWithRooms(hotelId = null) {
   try {
     const request = new sql.Request();
-    // First get all guests with valid IDs
-    const result = await request.query(`
+    
+    let query = `
       SELECT 
         g.guest_id,
         g.first_name,
@@ -126,8 +134,18 @@ async function getGuestsWithRooms() {
       LEFT JOIN Rooms r ON res.room_id = r.room_id
       WHERE g.guest_id IS NOT NULL
       AND ISNUMERIC(g.guest_id) = 1  -- Only include numeric guest_ids
-      ORDER BY g.last_name, g.first_name
-    `);
+    `;
+    
+    // Add hotel filter if hotelId is provided
+    if (hotelId) {
+      query += ` AND g.hotel_id = @hotelId`;
+      request.input('hotelId', sql.Int, hotelId);
+    }
+    
+    // Add sorting
+    query += ` ORDER BY g.last_name, g.first_name`;
+    
+    const result = await request.query(query);
     
     // Process the results to ensure data consistency
     const processedResults = result.recordset.map(record => ({

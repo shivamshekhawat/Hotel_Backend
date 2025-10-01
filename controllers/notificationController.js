@@ -11,13 +11,33 @@ const createNotification = async (req, res, next) => {
   }
 };
 
-// Get all notifications
-
+// Get all notifications with optional hotel filtering
 const getAllNotifications = async (req, res, next) => {
   try {
-    const notifications = await notificationModel.getAllNotifications();
-    res.json(notifications);
+    // Get hotel_id from query parameter or URL parameter
+    const hotelId = req.query.hotel_id || req.params.hotelId;
+    
+    // Convert to number if it exists
+    const parsedHotelId = hotelId ? parseInt(hotelId, 10) : null;
+    
+    // Validate hotel_id if provided
+    if (parsedHotelId && isNaN(parsedHotelId)) {
+      return res.status(400).json({
+        status: 0,
+        message: 'Invalid hotel_id parameter. Must be a number.',
+        response: []
+      });
+    }
+
+    const notifications = await notificationModel.getAllNotifications(parsedHotelId);
+    
+    res.status(200).json({
+      status: 1,
+      message: notifications.length > 0 ? "Notifications retrieved successfully" : "No notifications found",
+      response: notifications
+    });
   } catch (err) {
+    console.error('Error in getAllNotifications:', err);
     next(err);
   }
 };

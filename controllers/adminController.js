@@ -1,5 +1,6 @@
 const adminModel = require("../models/adminModel");
 const hotelModel = require("../models/hotelModel");
+const { verifyAdminToken } = require("../middleware/authMiddleware");
 const bcrypt = require("bcryptjs");
 const { generateToken } = require("../configuration/tokenGenerator");
 
@@ -112,27 +113,34 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ error: "Invalid password" });
     }
 
-    // 5️⃣ Generate token
-    const token = generateToken({
-      userId: admin.admin_id,
+    // 5️⃣ Generate token with admin_id and role
+    const tokenPayload = {
+      admin_id: admin.admin_id,
       role: "admin",
+      email: admin.email,
+      username: admin.username,
       session_id: session_id || null,
-    });
+    };
+    
+    console.log('Generating token with payload:', tokenPayload);
+    const token = generateToken(tokenPayload);
 
     // 6️⃣ Update token in DB
     await adminModel.updateAdminToken(admin.admin_id, token);
 
-  
+    // 7️⃣ Prepare response data (exclude password)
     const { password: _, ...adminData } = admin;
-    console.log("Admin data:", adminData);
+    console.log("Admin login successful for:", adminData);
     
-
-    // 8️⃣ Return success
-    res.json({
+    // 8️⃣ Return success response
+    res.status(200).json({
+      success: true,
       message: "Login successful",
-      admin: adminData,
-      token,
-      session_id: session_id || null,
+      data: {
+        admin: adminData,
+        token,
+        session_id: session_id || null,
+      }
     });
 
   } catch (err) {
@@ -196,12 +204,36 @@ const updateAdmin = async (req, res) => {
       return res.status(404).json({ error: "Admin not found" });
     }
 
+    // Check if the phone number is being changed
+    if (phone !== existingAdmin.mobile_number) {
+      // Check if the new phone number is already in use by another admin
+      const adminWithSamePhone = await adminModel.findAdminByMobile(phone);
+      if (adminWithSamePhone && adminWithSamePhone.admin_id !== adminId) {
+        return res.status(400).json({ 
+          error: "Phone number is already in use by another admin" 
+        });
+      }
+    }
+
+    // Check if the email is being changed
+    if (email.toLowerCase() !== existingAdmin.email.toLowerCase()) {
+      // Check if the new email is already in use by another admin
+      const adminWithSameEmail = await adminModel.findAdminByEmail(email);
+      if (adminWithSameEmail && adminWithSameEmail.admin_id !== adminId) {
+        return res.status(400).json({ 
+          error: "Email is already in use by another admin" 
+        });
+      }
+    }
+
     // Update admin with mapped field names
     const updateData = {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       email: email.toLowerCase().trim(),
-      mobile_number: phone.trim()
+      mobile_number: phone.trim(),
+      username: existingAdmin.username,  // Include the existing username
+      role: existingAdmin.role 
     };
 
     await adminModel.updateAdmin(adminId, updateData);
@@ -216,21 +248,28 @@ const updateAdmin = async (req, res) => {
         firstName: updatedAdmin.first_name,
         lastName: updatedAdmin.last_name,
         email: updatedAdmin.email,
-        phone: updatedAdmin.mobile_number
+        phone: updatedAdmin.mobile_number,
+        username: updatedAdmin.username
       }
     });
   } catch (err) {
     console.error("Update admin error:", err);
     
     // Handle specific error cases
-    if (err.message === "Email already exists") {
-      return res.status(400).json({ error: "Email already exists" });
-    }
-    if (err.message === "Mobile number already exists") {
-      return res.status(400).json({ error: "Phone number already exists" });
+    if (err.number === 2627) {
+      // SQL Server unique constraint violation
+      if (err.message.includes('UQ__Admins__30462B0F9219231B')) {
+        return res.status(400).json({ error: "Phone number is already in use" });
+      } else if (err.message.includes('UQ__Admins__A9D10534')) {
+        return res.status(400).json({ error: "Email is already in use" });
+      } else if (err.message.includes('UQ__Admins__F3DBC572')) {
+        return res.status(400).json({ error: "Username is already in use" });
+      }
     }
     
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({ 
+      error: "An error occurred while updating the admin" 
+    });
   }
 };
 
@@ -275,11 +314,69 @@ const updateHotelPassword = async (req, res) => {
   }
 };
 
+/**
+ * Get hotels for the currently logged-in admin
+ * @route GET /api/admin/hotels
+ * @access Private (Admin only)
+ */
+const getAdminHotels = async (req, res) => {
+  try {
+    // Get admin username from the token (set by verifyAdminToken middleware)
+    const username = req.admin.username;
+    
+    console.log('Admin username from token:', username); // Debug log
+    console.log('Request admin object:', req.admin); // Debug log
+
+    if (!username) {
+      return res.status(401).json({
+        success: false,
+        error: 'Unauthorized - Username not found in token',
+        receivedToken: req.admin // For debugging
+      });
+    }
+
+    // Get hotels for this admin
+    const hotels = await hotelModel.getHotelsByAdminId(username);
+    console.log('Hotels from DB:', hotels); // Debug log
+
+    // Format the response to match the required format
+    const adminId = req.admin.userId; // Get admin ID from the authenticated request
+    const formattedHotels = hotels.map(hotel => ({
+      hotel_id: hotel.hotel_id,
+      name: hotel.name,
+      logo_url: hotel.logo_url || '',
+      established_year: hotel.established_year || new Date().getFullYear(),
+      address: hotel.address || '',
+      service_care_no: hotel.service_care_no || '',
+      city: hotel.city || '',
+      country: hotel.country || '',
+      postal_code: hotel.postal_code || '',
+      username: hotel.username || '',
+      admin_id: hotel.admin_id || adminId // Use the admin ID from the request
+    }));
+
+    res.status(200).json({
+      success: true,
+      count: formattedHotels.length,
+      data: formattedHotels
+    });
+
+  } catch (error) {
+    console.error('Error in getAdminHotels:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Server error while fetching admin hotels',
+      details: error.message // Include error details for debugging
+    });
+  }
+};
+
 module.exports = {
   createAdmin,
   adminLogin,
   getAllAdmins,
   updateAdmin,
   deleteAdmin,
-  updateHotelPassword
+  updateHotelPassword,
+  getAdminHotels
 };

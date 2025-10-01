@@ -55,7 +55,8 @@ exports.loginRoom = async (req, res) => {
 
 exports.getRoomsByHotel = async (req, res) => {
   try {
-    const hotel_id = req.params.hotelId;
+    // Get hotel_id from URL parameter or query parameter
+    const hotel_id = req.params.hotelId || req.query.hotel_id;
     
     // If no hotel_id is provided, get all rooms
     if (!hotel_id) {

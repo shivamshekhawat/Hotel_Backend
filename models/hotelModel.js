@@ -238,16 +238,42 @@ async function adminHasHotel(adminUsername) {
   return result.recordset[0].hotelCount > 0;
 }
 
+// Get hotels by admin username
+async function getHotelsByAdminId(adminUsername) {
+  const request = new sql.Request();
+  const result = await request
+    .input('username', sql.NVarChar, adminUsername)
+    .query(`
+      SELECT 
+        h.hotel_id,
+        h.name,
+        h.logo_url,
+        h.established_year,
+        h.address,
+        h.service_care_no,
+        h.city,
+        h.country,
+        h.postal_code,
+        h.username,
+        a.username as admin_username
+      FROM Hotels h
+      INNER JOIN Admins a ON h.username = a.username
+      WHERE h.username = @username
+    `);
+  return result.recordset;
+}
+
 module.exports = {
   createHotel,
   findHotelByEmail,
   getAllHotels,
   getHotelById,
-  getDashboardData,
   updateHotel,
   deleteHotel,
-  findHotelByUsername,
-  updateToken,
+  getDashboardData,
   updatePassword,
-  adminHasHotel
+  adminHasHotel,
+  getHotelsByAdminId,
+  findHotelByUsername,
+  updateToken
 };

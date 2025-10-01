@@ -30,22 +30,52 @@ const createGuest = async (req, res, next) => {
 };
 
 
-// Get all guests
+// Get all guests with optional hotel filtering
+// GET /api/guests - gets all guests
+// GET /api/guests?hotel_id=93 - gets guests for hotel with ID 93
 const getGuests = async (req, res, next) => {
   try {
-    const guest = await guestModel.getAllGuests();
-    if (!guest) return res.status(404).json({ message: "Guest not found" });
-    res.json(guest);
+    const hotelId = req.query.hotel_id ? parseInt(req.query.hotel_id) : null;
+    
+    if (hotelId && isNaN(hotelId)) {
+      return res.status(400).json({
+        status: 0,
+        message: "Invalid hotel_id. Must be a number",
+        response: null
+      });
+    }
+    
+    const guests = await guestModel.getAllGuests(hotelId);
+    
+    res.status(200).json({
+      status: 1,
+      message: guests.length > 0 ? "Guests retrieved successfully" : "No guests found",
+      response: guests
+    });
   } catch (err) {
+    console.error('[GuestController] Error in getGuests:', err);
     next(err);
   }
 };
 
-// Get all guests with room information
+// Get all guests with room information and optional hotel filtering
+// GET /api/guests/with-rooms - gets all guests with room info
+// GET /api/guests/with-rooms?hotel_id=93 - gets guests with room info for specific hotel
 const getGuestsWithRooms = async (req, res, next) => {
   try {
     console.log('[GuestController] Fetching guests with room information...');
-    const guests = await guestModel.getGuestsWithRooms();
+    
+    const hotelId = req.query.hotel_id ? parseInt(req.query.hotel_id) : null;
+    
+    if (hotelId && isNaN(hotelId)) {
+      return res.status(400).json({
+        status: 0,
+        message: "Invalid hotel_id. Must be a number",
+        response: null
+      });
+    }
+    
+    const guests = await guestModel.getGuestsWithRooms(hotelId);
     
     if (!guests || !Array.isArray(guests)) {
       throw new Error('Invalid response from database');

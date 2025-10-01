@@ -6,7 +6,8 @@ class StaffModel {
     async getAllStaff() {
         await poolConnect;
         try {
-            const result = await pool.request().query('SELECT * FROM Staff ORDER BY created_at DESC');
+            const result = await pool.request()
+                .query('SELECT * FROM Staff ORDER BY created_at DESC');
             return result.recordset;
         } catch (error) {
             console.error('Error getting all staff:', error);

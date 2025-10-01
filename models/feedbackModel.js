@@ -47,42 +47,51 @@ async function createFeedback(data) {
       OUTPUT inserted.*
       VALUES (@reservation_id, @comments, @rating, @submitted_time)
     `);
-
   const inserted = result.recordset[0];
   inserted.submitted_time = formatDate(inserted.submitted_time);
   return inserted;
 }
 
-// ✅ Get all feedback
-// ✅ Get all feedback with guest + room details
-async function getAllFeedback() {
-  const request = new sql.Request();
-
-  const result = await request.query(`
-    SELECT 
-      f.feedback_id,
-      f.reservation_id,
-      f.comments,
-      f.rating,
-      f.submitted_time,
-      g.first_name + ' ' + g.last_name AS guest_name,
-      r.room_number
-    FROM Feedback f
-    INNER JOIN Reservations res ON f.reservation_id = res.reservation_id
-    INNER JOIN Guests g ON res.guest_id = g.guest_id
-    INNER JOIN Rooms r ON res.room_id = r.room_id
-    ORDER BY f.feedback_id ASC
-  `);
-
-  return result.recordset.map((row) => ({
-    feedback_id: row.feedback_id,
-    reservation_id: row.reservation_id,
-    comments: row.comments,
-    rating: row.rating,
-    submitted_time: formatDate(new Date(row.submitted_time)),
-    guest_name: row.guest_name,
-    room_number: row.room_number,
-  }));
+// ✅ Get all feedback with optional hotel filtering
+// @param {number} [hotelId] - Optional hotel ID to filter feedback
+async function getAllFeedback(hotelId = null) {
+  try {
+    const request = new sql.Request();
+    
+    let query = `
+      SELECT 
+        f.feedback_id, f.reservation_id, f.comments, f.rating, f.submitted_time,
+        r.check_in_time, r.check_out_time,
+        g.guest_id, g.first_name, g.last_name, g.email, g.phone,
+        rm.room_number, rm.hotel_id
+      FROM Feedback f
+      JOIN Reservations r ON f.reservation_id = r.reservation_id
+      JOIN Guests g ON r.guest_id = g.guest_id
+      JOIN Rooms rm ON r.room_id = rm.room_id
+    `;
+    
+    // Add hotel filter if hotelId is provided
+    if (hotelId) {
+      query += ' WHERE rm.hotel_id = @hotelId';
+      request.input('hotelId', sql.Int, hotelId);
+    }
+    
+    query += ' ORDER BY f.submitted_time DESC';
+    
+    const result = await request.query(query);
+    return result.recordset.map((row) => ({
+      feedback_id: row.feedback_id,
+      reservation_id: row.reservation_id,
+      comments: row.comments,
+      rating: row.rating,
+      submitted_time: formatDate(new Date(row.submitted_time)),
+      guest_name: `${row.first_name} ${row.last_name}`,
+      room_number: row.room_number,
+    }));
+  } catch (err) {
+    console.error("Error in getAllFeedback:", err);
+    throw err;
+  }
 }
 
 

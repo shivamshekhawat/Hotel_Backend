@@ -4,22 +4,37 @@ const adminController = require("../controllers/adminController");
 const { verifyApiKey } = require("../middleware/apiKeyMiddleware");
 const { verifyAdminToken } = require("../middleware/authMiddleware");
 
-// Create admin route
+// Debug middleware for all admin routes
+router.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] Admin route hit: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// Create admin route (no auth required)
 router.post("/", adminController.createAdmin);
 
-// Admin login route
+// Admin login route (no auth required)
 router.post("/login", adminController.adminLogin);
 
-// Get all admins route (protected with API key)
-router.get("/", verifyApiKey, adminController.getAllAdmins);
+// Protected routes (require admin token)
+router.use(verifyAdminToken);
 
-// Update admin route - PUT /api/admin/:id
-router.put("/:id", verifyAdminToken, adminController.updateAdmin);
+// Get all admins route
+router.get("/", adminController.getAllAdmins);
+
+// Update admin route
+router.put("/:id", adminController.updateAdmin);
 
 // Delete admin route
-router.delete("/:id", verifyAdminToken, adminController.deleteAdmin);
+router.delete("/:id", adminController.deleteAdmin);
 
 // Update hotel password route
-router.put("/hotel/password/:hotelId", verifyAdminToken, adminController.updateHotelPassword);
+router.put("/hotel/password/:hotelId", adminController.updateHotelPassword);
+
+// Get hotels for admin
+router.get("/hotels", (req, res, next) => {
+  console.log('GET /api/admin/hotels route hit');
+  adminController.getAdminHotels(req, res, next);
+});
 
 module.exports = router;

@@ -19,13 +19,34 @@ const createReservation = async (req, res, next) => {
   }
 };
 
-// Get all reservations
-
+// Get all reservations with optional hotel filtering
 const getReservations = async (req, res, next) => {
   try {
-    const reservations = await reservationModel.getAllReservations();
-    res.json(reservations);
+    // Get hotel_id from query parameter or URL parameter
+    const hotelId = req.query.hotel_id || req.params.hotelId;
+    
+    // Convert to number if it exists
+    const parsedHotelId = hotelId ? parseInt(hotelId, 10) : null;
+    
+    // Validate hotel_id if provided
+    if (parsedHotelId && isNaN(parsedHotelId)) {
+      return res.status(400).json({
+        status: 0,
+        message: 'Invalid hotel_id parameter. Must be a number.',
+        response: []
+      });
+    }
+
+    // Get reservations with optional hotel filtering
+    const reservations = await reservationModel.getAllReservations(parsedHotelId);
+    
+    res.status(200).json({
+      status: 1,
+      message: reservations.length > 0 ? "Reservations retrieved successfully" : "No reservations found",
+      response: reservations
+    });
   } catch (err) {
+    console.error('Error in getReservations:', err);
     next(err);
   }
 };

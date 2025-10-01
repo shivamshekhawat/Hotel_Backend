@@ -6,6 +6,7 @@ const staffModel = require('../models/staffModel');
 exports.getAllStaff = async (req, res) => {
     try {
         const staff = await staffModel.getAllStaff();
+        
         res.status(200).json({
             success: true,
             count: staff.length,
