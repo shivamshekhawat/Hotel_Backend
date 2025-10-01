@@ -256,10 +256,34 @@ async function deleteRoom(room_id) {
   return result.rowsAffected[0] > 0;
 }
 
+// ================== GET ALL ROOMS ==================
+async function getAllRooms() {
+  const request = new sql.Request();
+  const result = await request.query(`
+    SELECT 
+      room_id, 
+      hotel_id, 
+      room_number, 
+      capacity_adults, 
+      capacity_children, 
+      create_date, 
+      device_id, 
+      fcm_token, 
+      jwt_token, 
+      password, 
+      update_date, 
+      greeting
+    FROM Rooms
+    ORDER BY COALESCE(hotel_id, 0), room_number
+  `);
+  return result.recordset;
+}
+
 module.exports = {
   createRoom,
   getRooms,
   getRoomById,
+  getAllRooms,
   getRoomByNumber,
   updateRoom,
   deleteRoom,

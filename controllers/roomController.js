@@ -48,26 +48,31 @@ exports.loginRoom = async (req, res) => {
   }
 };
 
-// ================== GET ROOMS BY HOTEL ==================
+// ================== GET ROOMS ==================
+// Handles both:
+// GET /api/rooms - gets all rooms
+// GET /api/rooms/:hotelId - gets rooms by hotel
 
 exports.getRoomsByHotel = async (req, res) => {
   try {
     const hotel_id = req.params.hotelId;
     
-    // Validate hotel_id exists and is a valid number
+    // If no hotel_id is provided, get all rooms
     if (!hotel_id) {
-      console.error('Missing hotel_id parameter');
-      return res.status(400).json({ 
-        status: 0,
-        message: "Hotel ID is required in the URL",
-        response: null
+      console.log('[RoomController] Fetching all rooms');
+      const allRooms = await RoomModel.getAllRooms();
+      
+      return res.status(200).json({
+        status: 1,
+        message: allRooms.length > 0 ? "Rooms retrieved successfully" : "No rooms found",
+        response: allRooms
       });
     }
 
     // Convert to number and validate
     const hotelIdNum = parseInt(hotel_id, 10);
     if (isNaN(hotelIdNum) || hotelIdNum <= 0) {
-      console.error(`Invalid hotel_id: ${hotel_id}`);
+      console.error(`[RoomController] Invalid hotel_id: ${hotel_id}`);
       return res.status(400).json({
         status: 0,
         message: "Invalid Hotel ID. Must be a positive number",

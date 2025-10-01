@@ -96,8 +96,58 @@ async function deleteGuest(guest_id) {
     .query("DELETE FROM Guests WHERE guest_id=@guest_id");
 }
 
+// Get all guests with their room information
+// Handles cases with invalid guest_id and provides better error handling
+async function getGuestsWithRooms() {
+  try {
+    const request = new sql.Request();
+    // First get all guests with valid IDs
+    const result = await request.query(`
+      SELECT 
+        g.guest_id,
+        g.first_name,
+        g.last_name,
+        g.email,
+        g.phone,
+        g.language,
+        g.hotel_id,
+        r.room_number,
+        r.room_id,
+        res.check_in_time,
+        res.check_out_time,
+        res.is_checked_in,
+        res.reservation_id
+      FROM Guests g
+      LEFT JOIN (
+        SELECT * FROM Reservations 
+        WHERE guest_id IS NOT NULL 
+        AND ISNUMERIC(guest_id) = 1  -- Only include numeric guest_ids
+      ) res ON g.guest_id = res.guest_id
+      LEFT JOIN Rooms r ON res.room_id = r.room_id
+      WHERE g.guest_id IS NOT NULL
+      AND ISNUMERIC(g.guest_id) = 1  -- Only include numeric guest_ids
+      ORDER BY g.last_name, g.first_name
+    `);
+    
+    // Process the results to ensure data consistency
+    const processedResults = result.recordset.map(record => ({
+      ...record,
+      guest_id: Number(record.guest_id),
+      room_id: record.room_id ? Number(record.room_id) : null,
+      hotel_id: record.hotel_id ? Number(record.hotel_id) : null,
+      is_checked_in: record.is_checked_in === 1 || record.is_checked_in === true
+    }));
+
+    return processedResults;
+  } catch (error) {
+    console.error('Error in getGuestsWithRooms:', error);
+    throw new Error('Failed to fetch guests with room information');
+  }
+}
+
 module.exports = {
   createGuest,
+  getGuestsWithRooms,
   getAllGuests,
   getGuestById,
   updateGuest,

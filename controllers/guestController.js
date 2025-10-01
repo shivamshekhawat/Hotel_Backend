@@ -31,7 +31,6 @@ const createGuest = async (req, res, next) => {
 
 
 // Get all guests
-
 const getGuests = async (req, res, next) => {
   try {
     const guest = await guestModel.getAllGuests();
@@ -39,6 +38,79 @@ const getGuests = async (req, res, next) => {
     res.json(guest);
   } catch (err) {
     next(err);
+  }
+};
+
+// Get all guests with room information
+const getGuestsWithRooms = async (req, res, next) => {
+  try {
+    console.log('[GuestController] Fetching guests with room information...');
+    const guests = await guestModel.getGuestsWithRooms();
+    
+    if (!guests || !Array.isArray(guests)) {
+      throw new Error('Invalid response from database');
+    }
+
+    console.log(`[GuestController] Found ${guests.length} guests with room information`);
+    
+    // Format the response to group guests with their room information
+    const formattedGuests = guests.map(guest => {
+      // Ensure all required fields are present
+      if (!guest || !guest.guest_id) {
+        console.warn('[GuestController] Skipping invalid guest record:', guest);
+        return null;
+      }
+      
+      return {
+        guest_id: guest.guest_id,
+        first_name: guest.first_name || '',
+        last_name: guest.last_name || '',
+        email: guest.email || null,
+        phone: guest.phone || null,
+        language: guest.language || 'en',
+        hotel_id: guest.hotel_id || null,
+        room: guest.room_number ? {
+          room_id: guest.room_id,
+          room_number: guest.room_number,
+          check_in_time: guest.check_in_time || null,
+          check_out_time: guest.check_out_time || null,
+          is_checked_in: Boolean(guest.is_checked_in)
+        } : null
+      };
+    }).filter(guest => guest !== null); // Remove any null entries
+    
+    res.status(200).json({
+      status: 1,
+      message: formattedGuests.length > 0 
+        ? `Successfully retrieved ${formattedGuests.length} guests` 
+        : 'No guest records found',
+      count: formattedGuests.length,
+      response: formattedGuests
+    });
+    
+  } catch (err) {
+    console.error('[GuestController] Error in getGuestsWithRooms:', {
+      error: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Handle specific error types
+    if (err.message.includes('Invalid number') || 
+        err.message.includes('Validation failed for parameter')) {
+      return res.status(400).json({
+        status: 0,
+        message: 'Data validation error. Please check the guest records for invalid data.',
+        error: 'Invalid data format in database'
+      });
+    }
+    
+    // Default error response
+    res.status(500).json({
+      status: 0,
+      message: 'Failed to retrieve guest information',
+      error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+    });
   }
 };
 
@@ -83,6 +155,7 @@ const deleteGuest = async (req, res, next) => {
 module.exports = {
   createGuest,
   getGuests,
+  getGuestsWithRooms,
   getGuest,
   updateGuest,
   deleteGuest,

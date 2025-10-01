@@ -41,6 +41,9 @@ const roomRoutes = require("./routes/roomRoutes");
 const guestRoutes = require("./routes/guestRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 
+// Import PynBooking routes
+const pynbookingRoutes = require('./routes/pynbookingRoutes');
+
 // Apply Routes
 app.use("/api/hotels", hotelRoutes);
 app.use("/api/auth", authRoutes);
@@ -48,6 +51,7 @@ app.use("/api/v1/admin/auth", adminAuthRoutes);
 app.use("/api/rooms", roomRoutes);
 app.use("/api/guests", guestRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/pynbooking", pynbookingRoutes);
 app.use("/api/dashboard", hotelRoutes); // Dashboard route
 // Additional routes
 const staffRoutes = require('./routes/staffRoutes');

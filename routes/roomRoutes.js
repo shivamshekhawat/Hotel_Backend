@@ -13,13 +13,13 @@ router.get("/dashboard/:id", roomController.getRoomDashboard);
 // Room action
 router.post("/action", roomController.roomAction);
 
-// Get all rooms for a specific hotel
-// You can use either:
-
-router.get("/:hotelId", roomController.getRoomsByHotel);
+// Get all rooms or rooms by hotel
+// GET /api/rooms - gets all rooms
+// GET /api/rooms/91 - gets rooms for hotel with ID 91
+router.get(["/", "/:hotelId"], roomController.getRoomsByHotel);
 
 // Get a single room by ID
-// Example: /api/rooms/101  (101 is room_id)
+// Example: /api/rooms/room/101  (101 is room_id)
 router.get("/room/:id", roomController.getRoomById);
 
 // Create a new room (requires admin token)
